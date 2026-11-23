@@ -65,8 +65,14 @@
 
   .embed-frame{width:100%;height:100%;border:none;display:block;background:#0f141e}
 
-  /* Apartado 3: Datasheets e Integrados */
-  #panel-datasheets{overflow-y:auto;-webkit-overflow-scrolling:touch;background:var(--bg)}
+  /* Apartados nativos con scroll: Datasheets y Esquematicos */
+  #panel-datasheets,#panel-esquematicos{overflow-y:auto;-webkit-overflow-scrolling:touch;background:var(--bg)}
+  .sch-stage{
+    background:#ffffff;padding:12px;display:flex;align-items:center;justify-content:center;
+    min-height:260px;max-height:620px;overflow:hidden;position:relative;
+  }
+  .sch-stage img{max-width:100%;max-height:590px;width:auto;height:auto;object-fit:contain;display:block}
+  .sch-grid{display:grid;grid-template-columns:1fr;gap:18px}
   .ds-wrap{max-width:1340px;margin:0 auto;padding:18px 18px 64px}
 
   .ds-hero{
@@ -249,6 +255,7 @@
   <div class="nav-tabs" role="tablist">
     <button class="nav-btn active" role="tab" aria-selected="true" data-view="guia">📐 Guía 2D y Datos</button>
     <button class="nav-btn" role="tab" aria-selected="false" data-view="visor3d">🧊 Visor 3D</button>
+    <button class="nav-btn" role="tab" aria-selected="false" data-view="esquematicos">🔌 Esquemáticos</button>
     <button class="nav-btn" role="tab" aria-selected="false" data-view="datasheets">📑 Datasheets e ICs</button>
   </div>
 
@@ -266,6 +273,62 @@
   <!-- Apartado 2: Visor 3D interactivo con Camara Libre (archivo original intacto; carga diferida segura para WebGL) -->
   <section id="panel-visor3d" class="view-panel" aria-label="Visor 3D Interactivo">
     <iframe id="frame3d" class="embed-frame" data-src="./Visor3D_MAR_RAM.html" title="Visor 3D Interactivo MAR y RAM SAP-1"></iframe>
+  </section>
+
+  <!-- Apartado 3: Esquematicos originales del profesor (MAR, RAM y SAP-1 general) -->
+  <section id="panel-esquematicos" class="view-panel" aria-label="Esquemáticos Originales del Profesor">
+    <div class="ds-wrap">
+      <div class="ds-hero">
+        <h1>Esquemáticos Originales del Curso — Módulos MAR y RAM (SAP-1)</h1>
+        <p>Diagramas eléctricos de referencia suministrados para el diseño de la computadora SAP-1 (<code>mar.sch</code>, <code>ram.sch</code> y plano jerárquico general <code>8bit-computer.sch</code>). <b>Haz clic o toca cualquier esquema</b> para abrir el visor con zoom de alta precisión y revisar cada pin, valor y conexión.</p>
+      </div>
+
+      <div class="sch-grid">
+        <article class="ic-card">
+          <div class="ic-head">
+            <div class="ic-name">
+              <h3>Esquemático del Módulo MAR (mar.sch)</h3>
+              <span class="badge b-mar">Placa 7 × 9 cm · PY-7*9 CM</span>
+              <span class="badge b-desig">U34 (74LS173) · U33 (74LS157)</span>
+            </div>
+          </div>
+          <p class="ic-desc">Registro de Dirección de Memoria de 4 bits: captura <code>BUS_0..BUS_3</code> mediante <code>~MI</code>, <code>CLK</code> y <code>CLR</code> en <code>U34</code> (<code>74LS173</code>), conmuta con el banco manual <code>SW5</code> en <code>U33</code> (<code>74LS157</code>) gobernado por <code>SW6</code> (<code>PROG/RUN</code> con LEDs <code>D48/D49</code> y <code>R63/R64 = 1 kΩ</code>), visualiza <code>A3..A0</code> en <code>D44–D47</code> (<code>220 Ω</code>) e incluye el capacitor único de entrada <code>C18 = 0.1 µF (100 nF)</code> entre <code>VCC</code> y <code>GND</code>.</p>
+          <figure class="img-tile" data-scope="sch">
+            <div class="sch-stage"><img loading="lazy" src="./datasheets_img/esquema_mar.png" alt="Esquemático original del Módulo MAR (mar.sch)"><span class="zoom-hint">🔍 Ampliar esquema</span></div>
+            <figcaption class="img-cap"><strong>Módulo MAR — mar.sch</strong><span>Diagrama original del profesor · Clic para zoom</span></figcaption>
+          </figure>
+        </article>
+
+        <article class="ic-card">
+          <div class="ic-head">
+            <div class="ic-name">
+              <h3>Esquemático del Módulo RAM (ram.sch)</h3>
+              <span class="badge b-ram">Placa 9 × 15 cm · 16 × 8 bits</span>
+              <span class="badge b-desig">2× 74LS189 · 2× 74LS04 · 3× 74LS157 · 74LS00 · 74LS245</span>
+            </div>
+          </div>
+          <p class="ic-desc">Memoria RAM estática de 16 palabras × 8 bits: dos <code>74LS189</code> (<code>U24</code>, <code>U25</code>) con salidas invertidas restauradas por <code>U28/U29</code> (<code>74LS04</code>), multiplexores de datos <code>U26/U27</code> (<code>BUS_7..0</code> vs. <code>SW3</code> directo) y de escritura <code>U32</code> (<code>SW4</code> directo vs. <code>U31A</code>), red diferenciadora RC funcional en reloj (<code>C7 = 0.01 µF / 10 nF</code> + <code>R58 = 1 kΩ</code>), transceptor tri-estado <code>U30</code> (<code>74LS245</code>) hacia el Bus W y par de capacitores de entrada en paralelo <code>C16</code> y <code>C17 = 0.1 µF (100 nF)</code>.</p>
+          <figure class="img-tile" data-scope="sch">
+            <div class="sch-stage"><img loading="lazy" src="./datasheets_img/esquema_ram.png" alt="Esquemático original del Módulo RAM (ram.sch)"><span class="zoom-hint">🔍 Ampliar esquema</span></div>
+            <figcaption class="img-cap"><strong>Módulo RAM — ram.sch</strong><span>Diagrama original del profesor · Clic para zoom</span></figcaption>
+          </figure>
+        </article>
+
+        <article class="ic-card">
+          <div class="ic-head">
+            <div class="ic-name">
+              <h3>Esquemático General SAP-1 (8bit-computer.sch)</h3>
+              <span class="badge b-pkg">Arquitectura Completa · Bus W (8 bits)</span>
+            </div>
+          </div>
+          <p class="ic-desc">Plano jerárquico maestro de la computadora SAP-1 mostrando la interconexión de los bloques <code>MAR</code> y <code>RAM</code> con el Bus W (<code>BUS_0..BUS_7</code>), la red pull-down (<code>R8–R15</code>), los LEDs del bus, la Unidad de Control (<code>~MI</code>, <code>RI</code>, <code>~RO</code>), el reloj (<code>CLK</code>) y la alimentación principal de <code>+5 V</code>.</p>
+          <figure class="img-tile" data-scope="sch">
+            <div class="sch-stage"><img loading="lazy" src="./datasheets_img/esquema_sap1_general.png" alt="Esquemático jerárquico general SAP-1 (8bit-computer.sch)"><span class="zoom-hint">🔍 Ampliar esquema</span></div>
+            <figcaption class="img-cap"><strong>SAP-1 General — 8bit-computer.sch</strong><span>Interconexión MAR ↔ RAM ↔ Bus W · Clic para zoom</span></figcaption>
+          </figure>
+        </article>
+      </div>
+    </div>
   </section>
 
   <!-- Apartado 3: Datasheets e Integrados extraidos fielmente del informe -->
@@ -556,6 +619,7 @@
   const panels = {
     guia: document.getElementById('panel-guia'),
     visor3d: document.getElementById('panel-visor3d'),
+    esquematicos: document.getElementById('panel-esquematicos'),
     datasheets: document.getElementById('panel-datasheets')
   };
   const frame3d = document.getElementById('frame3d');
@@ -614,8 +678,8 @@
 
   // ---- Filtros y busqueda de Datasheets ----
   let activeCat = 'all';
-  const cards = Array.from(document.querySelectorAll('.ic-card'));
-  const groups = Array.from(document.querySelectorAll('.sec-group'));
+  const cards = Array.from(document.querySelectorAll('#panel-datasheets .ic-card'));
+  const groups = Array.from(document.querySelectorAll('#panel-datasheets .sec-group'));
   const searchInput = document.getElementById('dsSearch');
   const emptyMsg = document.getElementById('emptyMsg');
 
@@ -671,19 +735,24 @@
   const lbTitle = document.getElementById('lbTitle');
   const lbZoomLbl = document.getElementById('lbZoomLbl');
   const tiles = Array.from(document.querySelectorAll('.img-tile'));
-  let curIdx = 0, zoom = 1.0, panX = 0, panY = 0;
+  let curIdx = 0, zoom = 1.0, panX = 0, panY = 0, curScope = 'ds';
 
   function applyTransform() {
     lbCanvas.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
     lbZoomLbl.textContent = Math.round(zoom * 100) + '%';
   }
   function setZoom(z) {
-    zoom = Math.max(0.6, Math.min(3.6, z));
+    zoom = Math.max(0.6, Math.min(3.8, z));
     if (zoom <= 1.01) { panX = 0; panY = 0; }
     applyTransform();
   }
   function visibleTiles() {
-    return tiles.filter(t => !t.closest('.ic-card').classList.contains('hidden'));
+    return tiles.filter(t => {
+      const sc = t.dataset.scope === 'sch' ? 'sch' : 'ds';
+      if (sc !== curScope) return false;
+      const card = t.closest('.ic-card');
+      return !card || !card.classList.contains('hidden');
+    });
   }
   function showTile(tile) {
     const img = tile.querySelector('img');
@@ -698,6 +767,7 @@
 
   tiles.forEach(tile => {
     tile.addEventListener('click', () => {
+      curScope = tile.dataset.scope === 'sch' ? 'sch' : 'ds';
       const vt = visibleTiles();
       curIdx = Math.max(0, vt.indexOf(tile));
       showTile(tile);
