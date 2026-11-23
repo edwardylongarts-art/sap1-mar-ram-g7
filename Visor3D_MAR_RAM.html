@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no,viewport-fit=cover">
+<title>Visor 3D — SAP-1 MAR (7×9 cm) y RAM (9×15 cm)</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html,body{width:100%;height:100%;height:100dvh;overflow:hidden;overscroll-behavior:none;background:#10141c;color:#e8edf5;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+  body{position:fixed;inset:0;display:flex;flex-direction:column}
+
+  header{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:8px 12px;background:#171d29;border-bottom:1px solid #283246;z-index:30;flex-shrink:0}
+  .top-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  h1{font-size:14px;font-weight:700;color:#fff;white-space:nowrap}
+  .grp{display:flex;gap:3px;align-items:center;background:#101520;padding:3px;border-radius:8px;border:1px solid #263044}
+  button{background:transparent;color:#c2cde0;border:none;padding:6px 10px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;transition:.15s;white-space:nowrap;touch-action:manipulation}
+  button:hover{background:#232d42;color:#fff}
+  button.active{background:#2b6ef2;color:#fff}
+  .drawer{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+  .mob-only{display:none}
+  label.chk{display:flex;align-items:center;gap:5px;font-size:12px;color:#cdd7e8;padding:4px 8px;cursor:pointer;user-select:none;white-space:nowrap}
+  label.chk input{width:15px;height:15px;accent-color:#2b6ef2}
+  select{background:#171d29;color:#e8edf5;border:1px solid #2e3b54;border-radius:6px;padding:5px 8px;font-size:12px;max-width:100%}
+
+  #stage{flex:1;position:relative;min-height:0;overflow:hidden;touch-action:none}
+  #stage canvas{display:block;width:100%!important;height:100%!important;touch-action:none}
+
+  #info{position:absolute;left:12px;bottom:12px;background:rgba(18,24,36,.93);border:1px solid #2e3b54;border-radius:10px;padding:11px 32px 11px 13px;max-width:340px;font-size:12.5px;line-height:1.45;backdrop-filter:blur(6px);z-index:15}
+  #info h3{font-size:13.5px;color:#63a4ff;margin-bottom:4px}
+  #infoClose{position:absolute;top:6px;right:6px;padding:2px 7px;font-size:15px;color:#9fb0c9;line-height:1}
+  #info.hidden{display:none}
+
+  #legend{position:absolute;right:12px;bottom:12px;background:rgba(18,24,36,.92);border:1px solid #2e3b54;border-radius:10px;padding:10px 12px;font-size:11.5px;line-height:1.6;z-index:15}
+  #legend.hidden{display:none}
+  .dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:middle}
+  .badge{display:inline-block;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:700;background:#0d4f5c;color:#5ef2ff;margin-left:5px}
+
+  #mobCamBar{display:none;position:absolute;left:50%;transform:translateX(-50%);bottom:max(10px,env(safe-area-inset-bottom));z-index:14;background:rgba(16,21,32,.92);border:1px solid #2e3b54;border-radius:10px;padding:4px;gap:3px;backdrop-filter:blur(6px)}
+
+  #freeHud{position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:16;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:8px 12px;background:rgba(16,22,34,.92);border:1px solid #2f5aa8;border-radius:10px;padding:7px 12px;font-size:11.5px;color:#d8e4f8;backdrop-filter:blur(6px);max-width:calc(100% - 20px);box-shadow:0 4px 18px rgba(0,0,0,.35)}
+  #freeHud.hidden{display:none}
+  #freeHud .fbadge{background:#1b54c6;color:#fff;padding:2px 7px;border-radius:5px;font-weight:700;font-size:11px;letter-spacing:.2px}
+  #freeHud kbd{background:#232e44;border:1px solid #3c4d6e;border-radius:4px;padding:1px 5px;font:700 10.5px monospace;color:#8cc0ff}
+  #freeHud .spd{display:flex;align-items:center;gap:6px;white-space:nowrap}
+  #freeHud input[type=range]{width:86px;accent-color:#4a90ff;cursor:pointer}
+  #freeHud #freeSpeedVal{font:700 11px monospace;color:#7ec8ff;min-width:56px;text-align:right}
+  #freeHud #btnHudReset{background:#22304a;color:#e8f0ff;padding:3px 8px;font-size:11px;border:1px solid #354b72}
+  #freeHud #btnHudReset:hover{background:#2b6ef2;border-color:#2b6ef2}
+
+  #statusOverlay{display:flex;position:absolute;inset:0;align-items:center;justify-content:center;padding:24px;text-align:center;background:#10141c;z-index:40}
+  #statusOverlay.hidden{display:none}
+  #statusOverlay .card{max-width:480px;background:#192130;border:1px solid #30405c;border-radius:12px;padding:22px;line-height:1.6;font-size:13.5px}
+
+  /* Diseno compacto para telefonos */
+  @media (max-width: 780px){
+    header{padding:6px 8px;gap:6px}
+    .top-row{width:100%;justify-content:space-between;flex-wrap:nowrap}
+    h1{display:none}
+    .mob-only{display:inline-flex;align-items:center;justify-content:center}
+    #modeGrp button{padding:7px 9px;font-size:12px}
+    #btnMenu,#btnLegend{background:#101520;border:1px solid #2b3852;padding:7px 10px;font-size:12px;color:#dce6f7}
+    #btnMenu.active,#btnLegend.active{background:#2b6ef2;border-color:#2b6ef2;color:#fff}
+
+    .drawer{display:none;width:100%;flex-direction:column;align-items:stretch;gap:6px;padding-top:6px;border-top:1px solid #263044;max-height:52dvh;overflow-y:auto}
+    .drawer.open{display:flex}
+    .drawer .grp{flex-wrap:wrap;justify-content:space-between;padding:5px}
+    #camGrp{display:none}
+    label.chk{font-size:13px;padding:6px 8px}
+    select{width:100%;padding:8px;font-size:13px}
+
+    #mobCamBar{display:flex}
+    #mobCamBar button{padding:7px 11px;font-size:12px}
+
+    #info{left:8px;right:8px;bottom:56px;max-width:none;font-size:12px}
+    #legend{right:8px;top:8px;bottom:auto;font-size:11.5px}
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="top-row">
+    <h1>SAP-1 Baquelita 3D</h1>
+    <div class="grp" id="modeGrp">
+      <button data-mode="BOTH" class="active">MAR+RAM</button>
+      <button data-mode="MAR">MAR 7×9</button>
+      <button data-mode="RAM">RAM 9×15</button>
+    </div>
+    <div style="display:flex;gap:5px">
+      <button id="btnMenu" class="mob-only" aria-label="Controles">⚙ Capas</button>
+      <button id="btnLegend" class="mob-only" aria-label="Colores">●</button>
+    </div>
+  </div>
+  <div class="drawer" id="drawer">
+    <div class="grp" id="navModeGrp">
+      <button data-nav="orbit" class="active" title="Cámara anclada al centro (tecla C)">Órbita</button>
+      <button data-nav="free" title="Cámara Libre Free-Fly para inspección cercana (tecla C)">✈ Libre (C)</button>
+      <button id="btnResetCam" title="Restablecer vista inicial (tecla R)">↺ Reset</button>
+    </div>
+    <div class="grp" id="camGrp">
+      <button data-cam="iso">Isométrica</button>
+      <button data-cam="top">Arriba</button>
+      <button data-cam="bot">Soldadura</button>
+      <button data-cam="side">Perfil</button>
+    </div>
+    <div class="grp">
+      <label class="chk"><input type="checkbox" id="tComp" checked> Componentes</label>
+      <label class="chk"><input type="checkbox" id="tSolder" checked> Rieles/Estaño</label>
+      <label class="chk"><input type="checkbox" id="tWires" checked> Cables AWG30</label>
+      <label class="chk"><input type="checkbox" id="tXray"> Rayos X</label>
+      <select id="busFilter">
+        <option value="ALL">Bus: Todos</option>
+        <option value="bus">Solo Bus W (azul)</option>
+        <option value="data">Solo Datos internos (verde)</option>
+        <option value="addr">Solo Direcciones/PROG (amarillo)</option>
+        <option value="dip">Solo Switches DIP (blanco)</option>
+        <option value="ctrl">Solo Control/Reloj (naranja)</option>
+        <option value="gnd">Solo GND (negro)</option>
+      </select>
+    </div>
+  </div>
+</header>
+
+<div id="stage">
+  <div id="freeHud" class="hidden">
+    <span class="fbadge">✈ CÁMARA LIBRE</span>
+    <span><kbd>WASD</kbd>/<kbd>↑↓←→</kbd> Mover · <kbd>E</kbd>/<kbd>Espacio</kbd> Subir · <kbd>Q</kbd>/<kbd>Shift</kbd> Bajar · Arrastrar: Mirar 360° · Rueda: Vel. · <kbd>R</kbd> Reset · <kbd>C</kbd> Órbita</span>
+    <span class="spd">Vel: <input type="range" id="freeSpeed" min="4" max="240" step="1" value="55"><span id="freeSpeedVal">55 mm/s</span></span>
+    <button id="btnHudReset">↺ Reset</button>
+  </div>
+  <div id="info">
+    <button id="infoClose" title="Cerrar">×</button>
+    <h3>Vista 3D Interactiva</h3>
+    <div id="infoBody">1 dedo: rotar · 2 dedos: zoom y mover.<br><b>Toca cualquier componente</b> para ver su referencia y coordenadas (C, F).</div>
+  </div>
+  <div id="legend">
+    <div><span class="dot" style="background:#222;border:1px solid #777"></span>GND</div>
+    <div><span class="dot" style="background:#e01e1e"></span>VCC (+5V)</div>
+    <div><span class="dot" style="background:#1e6fff"></span>Bus W (D0..D7)</div>
+    <div><span class="dot" style="background:#f0be00"></span>Direcciones / PROG</div>
+    <div><span class="dot" style="background:#ff7b00"></span>Control / Reloj</div>
+    <div><span class="dot" style="background:#19b34a"></span>Datos internos</div>
+    <div><span class="dot" style="background:#e8e8e8"></span>Switches DIP</div>
+    <div><span class="dot" style="background:#a06a38"></span>LEDs</div>
+  </div>
+  <div id="mobCamBar">
+    <button data-cam="iso">Iso</button>
+    <button data-cam="top">Arriba</button>
+    <button data-cam="bot">Soldadura</button>
+    <button data-cam="side">Perfil</button>
+  </div>
+  <div id="statusOverlay">
+    <div class="card" id="statusCard">
+      <h2 style="color:#63a4ff;margin-bottom:8px">Cargando visor 3D...</h2>
+      <p style="color:#b8c7de">Preparando geometría de MAR y RAM.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+const DATA = {"MAR": {"name": "MAR", "title": "MAR - Memory Address Register (7 x 9 cm, montaje real)", "w": 90.0, "h": 70.0, "cols": 31, "rows": 25, "mx": 6.899999999999999, "my": 4.52, "cmin": 0, "board_style": "fr4_green", "comps": [{"ref": "U34", "kind": "DIP16", "value": "SN74LS173AN", "c": 9, "r": 12, "rot": 180, "desc": "Registro de direccion 4 bits (muesca abajo; C6..C9, F5..F12)", "new": false, "pads": [{"name": "1", "c": 9, "r": 12}, {"name": "2", "c": 9, "r": 11}, {"name": "3", "c": 9, "r": 10}, {"name": "4", "c": 9, "r": 9}, {"name": "5", "c": 9, "r": 8}, {"name": "6", "c": 9, "r": 7}, {"name": "7", "c": 9, "r": 6}, {"name": "8", "c": 9, "r": 5}, {"name": "9", "c": 6, "r": 5}, {"name": "10", "c": 6, "r": 6}, {"name": "11", "c": 6, "r": 7}, {"name": "12", "c": 6, "r": 8}, {"name": "13", "c": 6, "r": 9}, {"name": "14", "c": 6, "r": 10}, {"name": "15", "c": 6, "r": 11}, {"name": "16", "c": 6, "r": 12}], "color": null, "labels": null}, {"ref": "U33", "kind": "DIP16", "value": "SN74LS157N", "c": 18, "r": 12, "rot": 180, "desc": "MUX direccion 4b RUN=U34 / PROG=SW5 (muesca abajo; C15..C18, F5..F12)", "new": false, "pads": [{"name": "1", "c": 18, "r": 12}, {"name": "2", "c": 18, "r": 11}, {"name": "3", "c": 18, "r": 10}, {"name": "4", "c": 18, "r": 9}, {"name": "5", "c": 18, "r": 8}, {"name": "6", "c": 18, "r": 7}, {"name": "7", "c": 18, "r": 6}, {"name": "8", "c": 18, "r": 5}, {"name": "9", "c": 15, "r": 5}, {"name": "10", "c": 15, "r": 6}, {"name": "11", "c": 15, "r": 7}, {"name": "12", "c": 15, "r": 8}, {"name": "13", "c": 15, "r": 9}, {"name": "14", "c": 15, "r": 10}, {"name": "15", "c": 15, "r": 11}, {"name": "16", "c": 15, "r": 12}], "color": null, "labels": null}, {"ref": "C18", "kind": "C254", "value": "100nF", "c": 3, "r": 13, "rot": 90, "desc": "Desacoplo unico de entrada VCC -> GND (0.1 uF, junto a pad VCC y U34)", "new": false, "pads": [{"name": "1", "c": 3, "r": 13}, {"name": "2", "c": 3, "r": 12}], "color": null, "labels": null}, {"ref": "SW5", "kind": "SWDIP4", "value": "KSPA04-NB", "c": 15, "r": 19, "rot": 90, "desc": "DIP switch 4 pos. direccion manual D3..D0 (palancas abajo)", "new": false, "pads": [{"name": "1", "c": 15, "r": 19}, {"name": "2", "c": 16, "r": 19}, {"name": "3", "c": 17, "r": 19}, {"name": "4", "c": 18, "r": 19}, {"name": "5", "c": 18, "r": 16}, {"name": "6", "c": 17, "r": 16}, {"name": "7", "c": 16, "r": 16}, {"name": "8", "c": 15, "r": 16}], "color": null, "labels": null}, {"ref": "R59", "kind": "R762", "value": "220", "c": 3, "r": 16, "rot": 270, "desc": "Limitadora 220 Ohm LED direccion D3 / A3", "new": false, "pads": [{"name": "1", "c": 3, "r": 16}, {"name": "2", "c": 3, "r": 19}], "color": null, "labels": null}, {"ref": "D44", "kind": "LED5", "value": "ROJO", "c": 3, "r": 23, "rot": 90, "desc": "LED rojo de direccion D3 / A3", "new": false, "pads": [{"name": "1", "c": 3, "r": 23}, {"name": "2", "c": 3, "r": 22}], "color": "#ff2b2b", "labels": null}, {"ref": "R60", "kind": "R762", "value": "220", "c": 6, "r": 16, "rot": 270, "desc": "Limitadora 220 Ohm LED direccion D2 / A2", "new": false, "pads": [{"name": "1", "c": 6, "r": 16}, {"name": "2", "c": 6, "r": 19}], "color": null, "labels": null}, {"ref": "D45", "kind": "LED5", "value": "ROJO", "c": 6, "r": 23, "rot": 90, "desc": "LED rojo de direccion D2 / A2", "new": false, "pads": [{"name": "1", "c": 6, "r": 23}, {"name": "2", "c": 6, "r": 22}], "color": "#ff2b2b", "labels": null}, {"ref": "R61", "kind": "R762", "value": "220", "c": 9, "r": 16, "rot": 270, "desc": "Limitadora 220 Ohm LED direccion D1 / A1", "new": false, "pads": [{"name": "1", "c": 9, "r": 16}, {"name": "2", "c": 9, "r": 19}], "color": null, "labels": null}, {"ref": "D46", "kind": "LED5", "value": "ROJO", "c": 9, "r": 23, "rot": 90, "desc": "LED rojo de direccion D1 / A1", "new": false, "pads": [{"name": "1", "c": 9, "r": 23}, {"name": "2", "c": 9, "r": 22}], "color": "#ff2b2b", "labels": null}, {"ref": "R62", "kind": "R762", "value": "220", "c": 12, "r": 16, "rot": 270, "desc": "Limitadora 220 Ohm LED direccion D0 / A0", "new": false, "pads": [{"name": "1", "c": 12, "r": 16}, {"name": "2", "c": 12, "r": 19}], "color": null, "labels": null}, {"ref": "D47", "kind": "LED5", "value": "ROJO", "c": 12, "r": 23, "rot": 90, "desc": "LED rojo de direccion D0 / A0", "new": false, "pads": [{"name": "1", "c": 12, "r": 23}, {"name": "2", "c": 12, "r": 22}], "color": "#ff2b2b", "labels": null}, {"ref": "D49", "kind": "LED5", "value": "VERDE", "c": 22, "r": 14, "rot": 270, "desc": "LED indicador modo RUN (verde)", "new": false, "pads": [{"name": "1", "c": 22, "r": 14}, {"name": "2", "c": 22, "r": 15}], "color": "#22dd44", "labels": null}, {"ref": "R64", "kind": "R762", "value": "1k", "c": 22, "r": 17, "rot": 270, "desc": "Limitadora 1 kOhm LED RUN (verde)", "new": false, "pads": [{"name": "1", "c": 22, "r": 17}, {"name": "2", "c": 22, "r": 20}], "color": null, "labels": null}, {"ref": "D48", "kind": "LED5", "value": "ROJO", "c": 26, "r": 14, "rot": 270, "desc": "LED indicador modo PROG (rojo)", "new": false, "pads": [{"name": "1", "c": 26, "r": 14}, {"name": "2", "c": 26, "r": 15}], "color": "#ff2b2b", "labels": null}, {"ref": "R63", "kind": "R762", "value": "1k", "c": 24, "r": 16, "rot": 270, "desc": "Limitadora 1 kOhm LED PROG (rojo)", "new": false, "pads": [{"name": "1", "c": 24, "r": 16}, {"name": "2", "c": 24, "r": 19}], "color": null, "labels": null}, {"ref": "SW6", "kind": "SPDT3", "value": "SPDT PROG/RUN", "c": 26, "r": 19, "rot": 0, "desc": "Interruptor deslizable SPDT (arriba=Rojo PROG/pin S, centro=GND, abajo=Verde RUN)", "new": false, "pads": [{"name": "1", "c": 26, "r": 19}, {"name": "2", "c": 26, "r": 20}, {"name": "3", "c": 26, "r": 21}], "color": null, "labels": null}, {"ref": "P_EXT", "kind": "EDGE14", "value": "PADS BORDE", "c": 0, "r": 3, "rot": 0, "desc": "Interfaz directa en pads del borde lateral (borde derecho en cara soldadura)", "new": false, "pads": [{"name": "1", "c": 0, "r": 3}, {"name": "2", "c": 0, "r": 5}, {"name": "3", "c": 0, "r": 6}, {"name": "4", "c": 0, "r": 7}, {"name": "5", "c": 0, "r": 8}, {"name": "6", "c": 0, "r": 9}, {"name": "7", "c": 0, "r": 10}, {"name": "8", "c": 0, "r": 11}, {"name": "9", "c": 0, "r": 13}, {"name": "10", "c": 0, "r": 15}, {"name": "11", "c": 0, "r": 16}, {"name": "12", "c": 0, "r": 17}, {"name": "13", "c": 0, "r": 18}, {"name": "14", "c": 0, "r": 20}], "color": null, "labels": ["GND", "CLR", "CLK", "~MI", "BUS_0", "BUS_1", "BUS_2", "BUS_3", "VCC", "A3", "A2", "A1", "A0", "PROG"]}], "rails": [{"net": "GND", "cls": "gnd", "segs": [[[6, 3], [30, 3]], [[30, 3], [30, 24]], [[3, 24], [30, 24]]]}], "wires": [{"id": "W1", "net": "~MI", "cls": "ctrl", "type": "puente", "a": [6, 6], "b": [6, 5], "al": "U34.10", "bl": "U34.9", "path": [[6.0, 6.0], [6.0, 5.0]]}, {"id": "W2", "net": "GND", "cls": "gnd", "type": "puente", "a": [3, 24], "b": [3, 23], "al": "Riel GND", "bl": "D44.1", "path": [[3.0, 24.0], [3.0, 23.0]]}, {"id": "W3", "net": "GND", "cls": "gnd", "type": "puente", "a": [6, 24], "b": [6, 23], "al": "Riel GND", "bl": "D45.1", "path": [[6.0, 24.0], [6.0, 23.0]]}, {"id": "W4", "net": "GND", "cls": "gnd", "type": "puente", "a": [9, 11], "b": [9, 12], "al": "U34.2", "bl": "U34.1", "path": [[9.0, 11.0], [9.0, 12.0]]}, {"id": "W5", "net": "GND", "cls": "gnd", "type": "puente", "a": [9, 24], "b": [9, 23], "al": "Riel GND", "bl": "D46.1", "path": [[9.0, 24.0], [9.0, 23.0]]}, {"id": "W6", "net": "GND", "cls": "gnd", "type": "puente", "a": [12, 24], "b": [12, 23], "al": "Riel GND", "bl": "D47.1", "path": [[12.0, 24.0], [12.0, 23.0]]}, {"id": "W7", "net": "GND", "cls": "gnd", "type": "puente", "a": [15, 19], "b": [16, 19], "al": "SW5.1", "bl": "SW5.2", "path": [[15.0, 19.0], [16.0, 19.0]]}, {"id": "W8", "net": "GND", "cls": "gnd", "type": "puente", "a": [16, 19], "b": [17, 19], "al": "SW5.2", "bl": "SW5.3", "path": [[16.0, 19.0], [17.0, 19.0]]}, {"id": "W9", "net": "GND", "cls": "gnd", "type": "puente", "a": [17, 19], "b": [18, 19], "al": "SW5.3", "bl": "SW5.4", "path": [[17.0, 19.0], [18.0, 19.0]]}, {"id": "W10", "net": "GND", "cls": "gnd", "type": "desnudo", "a": [6, 3], "b": [0, 3], "al": "Riel GND", "bl": "P_EXT.1", "path": [[6.0, 3.0], [0.0, 3.0]]}, {"id": "W11", "net": "GND", "cls": "gnd", "type": "desnudo", "a": [9, 3], "b": [9, 5], "al": "Riel GND", "bl": "U34.8", "path": [[9.0, 3.0], [9.0, 5.0]]}, {"id": "W12", "net": "GND", "cls": "gnd", "type": "desnudo", "a": [9, 11], "b": [15, 11], "al": "U34.2", "bl": "U33.15", "path": [[9.0, 11.0], [15.0, 11.0]]}, {"id": "W13", "net": "GND", "cls": "gnd", "type": "desnudo", "a": [15, 24], "b": [15, 19], "al": "Riel GND", "bl": "SW5.1", "path": [[15.0, 24.0], [15.0, 19.0]]}, {"id": "W14", "net": "GND", "cls": "gnd", "type": "desnudo", "a": [18, 3], "b": [18, 5], "al": "Riel GND", "bl": "U33.8", "path": [[18.0, 3.0], [18.0, 5.0]]}, {"id": "W15", "net": "GND", "cls": "gnd", "type": "desnudo", "a": [30, 20], "b": [26, 20], "al": "Riel GND", "bl": "SW6.2", "path": [[30.0, 20.0], [26.0, 20.0]]}, {"id": "W16", "net": "LED_A0", "cls": "led", "type": "desnudo", "a": [12, 19], "b": [12, 22], "al": "R62.2", "bl": "D47.2", "path": [[12.0, 19.0], [12.0, 22.0]]}, {"id": "W17", "net": "LED_A1", "cls": "led", "type": "desnudo", "a": [9, 19], "b": [9, 22], "al": "R61.2", "bl": "D46.2", "path": [[9.0, 19.0], [9.0, 22.0]]}, {"id": "W18", "net": "LED_A2", "cls": "led", "type": "desnudo", "a": [6, 19], "b": [6, 22], "al": "R60.2", "bl": "D45.2", "path": [[6.0, 19.0], [6.0, 22.0]]}, {"id": "W19", "net": "LED_A3", "cls": "led", "type": "desnudo", "a": [3, 19], "b": [3, 22], "al": "R59.2", "bl": "D44.2", "path": [[3.0, 19.0], [3.0, 22.0]]}, {"id": "W20", "net": "LED_RUN", "cls": "led", "type": "desnudo", "a": [22, 17], "b": [22, 15], "al": "R64.1", "bl": "D49.2", "path": [[22.0, 17.0], [22.0, 15.0]]}, {"id": "W21", "net": "VCC", "cls": "vcc", "type": "desnudo", "a": [0, 13], "b": [3, 13], "al": "P_EXT.9", "bl": "C18.1", "path": [[0.0, 13.0], [3.0, 13.0]]}, {"id": "W22", "net": "A0", "cls": "addr", "type": "aislado", "a": [12, 16], "b": [0, 18], "al": "R62.1", "bl": "P_EXT.13", "path": [[12.0, 16.0], [12.0, 17.5], [0.0, 17.5], [0.0, 18.0]]}, {"id": "W23", "net": "A0", "cls": "addr", "type": "aislado", "a": [15, 5], "b": [12, 16], "al": "U33.9", "bl": "R62.1", "path": [[15.0, 5.0], [14.5, 5.0], [14.5, 16.0], [12.0, 16.0]]}, {"id": "W24", "net": "A1", "cls": "addr", "type": "aislado", "a": [9, 16], "b": [0, 17], "al": "R61.1", "bl": "P_EXT.12", "path": [[9.0, 16.0], [9.0, 16.5], [0.0, 16.5], [0.0, 17.0]]}, {"id": "W25", "net": "A1", "cls": "addr", "type": "aislado", "a": [15, 8], "b": [9, 16], "al": "U33.12", "bl": "R61.1", "path": [[15.0, 8.0], [13.5, 8.0], [13.5, 15.5], [9.0, 15.5], [9.0, 16.0]]}, {"id": "W26", "net": "A2", "cls": "addr", "type": "aislado", "a": [6, 16], "b": [0, 16], "al": "R60.1", "bl": "P_EXT.11", "path": [[6.0, 16.0], [6.0, 15.5], [0.0, 15.5], [0.0, 16.0]]}, {"id": "W27", "net": "A2", "cls": "addr", "type": "aislado", "a": [18, 6], "b": [6, 16], "al": "U33.7", "bl": "R60.1", "path": [[18.0, 6.0], [17.5, 6.0], [17.5, 4.5], [6.5, 4.5], [6.5, 16.0], [6.0, 16.0]]}, {"id": "W28", "net": "A3", "cls": "addr", "type": "aislado", "a": [3, 16], "b": [0, 15], "al": "R59.1", "bl": "P_EXT.10", "path": [[3.0, 16.0], [3.0, 15.0], [0.0, 15.0]]}, {"id": "W29", "net": "A3", "cls": "addr", "type": "aislado", "a": [18, 9], "b": [3, 16], "al": "U33.4", "bl": "R59.1", "path": [[18.0, 9.0], [19.5, 9.0], [19.5, 18.5], [3.0, 18.5], [3.0, 16.0]]}, {"id": "W30", "net": "PROG", "cls": "addr", "type": "aislado", "a": [18, 12], "b": [0, 20], "al": "U33.1", "bl": "P_EXT.14", "path": [[18.0, 12.0], [19.0, 12.0], [19.0, 19.5], [0.0, 19.5], [0.0, 20.0]]}, {"id": "W31", "net": "PROG", "cls": "addr", "type": "aislado", "a": [26, 14], "b": [18, 12], "al": "D48.1", "bl": "U33.1", "path": [[26.0, 14.0], [26.0, 12.5], [18.0, 12.5], [18.0, 12.0]]}, {"id": "W32", "net": "PROG", "cls": "addr", "type": "aislado", "a": [26, 19], "b": [26, 14], "al": "SW6.1", "bl": "D48.1", "path": [[26.0, 19.0], [25.5, 19.0], [25.5, 14.0], [26.0, 14.0]]}, {"id": "W33", "net": "BUS_0", "cls": "bus", "type": "aislado", "a": [0, 8], "b": [6, 7], "al": "P_EXT.5", "bl": "U34.11", "path": [[0.0, 8.0], [0.0, 7.5], [6.0, 7.5], [6.0, 7.0]]}, {"id": "W34", "net": "BUS_1", "cls": "bus", "type": "aislado", "a": [0, 9], "b": [6, 8], "al": "P_EXT.6", "bl": "U34.12", "path": [[0.0, 9.0], [0.0, 8.5], [6.0, 8.5], [6.0, 8.0]]}, {"id": "W35", "net": "BUS_2", "cls": "bus", "type": "aislado", "a": [0, 10], "b": [6, 9], "al": "P_EXT.7", "bl": "U34.13", "path": [[0.0, 10.0], [0.0, 9.5], [6.0, 9.5], [6.0, 9.0]]}, {"id": "W36", "net": "BUS_3", "cls": "bus", "type": "aislado", "a": [0, 11], "b": [6, 10], "al": "P_EXT.8", "bl": "U34.14", "path": [[0.0, 11.0], [5.5, 11.0], [5.5, 10.0], [6.0, 10.0]]}, {"id": "W37", "net": "CLK", "cls": "ctrl", "type": "aislado", "a": [0, 6], "b": [9, 6], "al": "P_EXT.3", "bl": "U34.7", "path": [[0.0, 6.0], [0.0, 5.5], [9.0, 5.5], [9.0, 6.0]]}, {"id": "W38", "net": "CLR", "cls": "ctrl", "type": "aislado", "a": [0, 5], "b": [6, 11], "al": "P_EXT.2", "bl": "U34.15", "path": [[0.0, 5.0], [0.5, 5.0], [0.5, 10.5], [6.0, 10.5], [6.0, 11.0]]}, {"id": "W39", "net": "~MI", "cls": "ctrl", "type": "aislado", "a": [0, 7], "b": [6, 6], "al": "P_EXT.4", "bl": "U34.10", "path": [[0.0, 7.0], [0.0, 6.5], [6.0, 6.5], [6.0, 6.0]]}, {"id": "W40", "net": "Q_A0", "cls": "data", "type": "aislado", "a": [9, 7], "b": [15, 6], "al": "U34.6", "bl": "U33.10", "path": [[9.0, 7.0], [9.0, 6.5], [15.0, 6.5], [15.0, 6.0]]}, {"id": "W41", "net": "Q_A1", "cls": "data", "type": "aislado", "a": [9, 8], "b": [15, 9], "al": "U34.5", "bl": "U33.13", "path": [[9.0, 8.0], [9.0, 8.5], [15.0, 8.5], [15.0, 9.0]]}, {"id": "W42", "net": "Q_A2", "cls": "data", "type": "aislado", "a": [9, 9], "b": [18, 7], "al": "U34.4", "bl": "U33.6", "path": [[9.0, 9.0], [8.5, 9.0], [8.5, 7.5], [18.0, 7.5], [18.0, 7.0]]}, {"id": "W43", "net": "Q_A3", "cls": "data", "type": "aislado", "a": [9, 10], "b": [18, 10], "al": "U34.3", "bl": "U33.3", "path": [[9.0, 10.0], [9.0, 9.5], [18.0, 9.5], [18.0, 10.0]]}, {"id": "W44", "net": "SW_A0", "cls": "dip", "type": "aislado", "a": [18, 16], "b": [15, 7], "al": "SW5.5", "bl": "U33.11", "path": [[18.0, 16.0], [17.5, 16.0], [17.5, 7.0], [15.0, 7.0]]}, {"id": "W45", "net": "SW_A1", "cls": "dip", "type": "aislado", "a": [17, 16], "b": [15, 10], "al": "SW5.6", "bl": "U33.14", "path": [[17.0, 16.0], [16.5, 16.0], [16.5, 10.0], [15.0, 10.0]]}, {"id": "W46", "net": "SW_A2", "cls": "dip", "type": "aislado", "a": [16, 16], "b": [18, 8], "al": "SW5.7", "bl": "U33.5", "path": [[16.0, 16.0], [16.0, 16.5], [18.5, 16.5], [18.5, 8.0], [18.0, 8.0]]}, {"id": "W47", "net": "SW_A3", "cls": "dip", "type": "aislado", "a": [15, 16], "b": [18, 11], "al": "SW5.8", "bl": "U33.2", "path": [[15.0, 16.0], [15.5, 16.0], [15.5, 11.0], [18.0, 11.0]]}, {"id": "W48", "net": "GND", "cls": "gnd", "type": "aislado", "a": [9, 5], "b": [9, 11], "al": "U34.8", "bl": "U34.2", "path": [[9.0, 5.0], [7.5, 5.0], [7.5, 11.0], [9.0, 11.0]]}, {"id": "W49", "net": "GND", "cls": "gnd", "type": "aislado", "a": [9, 12], "b": [3, 12], "al": "U34.1", "bl": "C18.2", "path": [[9.0, 12.0], [9.0, 11.5], [3.0, 11.5], [3.0, 12.0]]}, {"id": "W50", "net": "LED_PROG", "cls": "led", "type": "aislado", "a": [24, 16], "b": [26, 15], "al": "R63.1", "bl": "D48.2", "path": [[24.0, 16.0], [24.0, 15.0], [26.0, 15.0]]}, {"id": "W51", "net": "RUN_K", "cls": "led", "type": "aislado", "a": [26, 21], "b": [22, 14], "al": "SW6.3", "bl": "D49.1", "path": [[26.0, 21.0], [22.5, 21.0], [22.5, 14.0], [22.0, 14.0]]}, {"id": "W52", "net": "VCC", "cls": "vcc", "type": "aislado", "a": [3, 13], "b": [6, 12], "al": "C18.1", "bl": "U34.16", "path": [[3.0, 13.0], [6.0, 13.0], [6.0, 12.0]]}, {"id": "W53", "net": "VCC", "cls": "vcc", "type": "aislado", "a": [6, 12], "b": [15, 12], "al": "U34.16", "bl": "U33.16", "path": [[6.0, 12.0], [7.5, 12.0], [7.5, 12.5], [15.0, 12.5], [15.0, 12.0]]}, {"id": "W54", "net": "VCC", "cls": "vcc", "type": "aislado", "a": [15, 12], "b": [22, 20], "al": "U33.16", "bl": "R64.2", "path": [[15.0, 12.0], [15.0, 11.5], [21.5, 11.5], [21.5, 20.0], [22.0, 20.0]]}, {"id": "W55", "net": "VCC", "cls": "vcc", "type": "aislado", "a": [22, 20], "b": [24, 19], "al": "R64.2", "bl": "R63.2", "path": [[22.0, 20.0], [22.0, 19.0], [24.0, 19.0]]}]}, "RAM": {"name": "RAM", "title": "RAM 16 x 8 Bytes (9 x 15 cm, 74LS189)", "w": 150.0, "h": 90.0, "cols": 51, "rows": 30, "mx": 11.5, "my": 8.170000000000002, "cmin": 1, "board_style": "bakelite", "comps": [{"ref": "U32", "kind": "DIP16", "value": "74LS157", "c": 7, "r": 10, "rot": 0, "desc": "MUX ~WE (PROG=SW4 / RUN=U31)", "new": false, "pads": [{"name": "1", "c": 7, "r": 10}, {"name": "2", "c": 7, "r": 11}, {"name": "3", "c": 7, "r": 12}, {"name": "4", "c": 7, "r": 13}, {"name": "5", "c": 7, "r": 14}, {"name": "6", "c": 7, "r": 15}, {"name": "7", "c": 7, "r": 16}, {"name": "8", "c": 7, "r": 17}, {"name": "9", "c": 10, "r": 17}, {"name": "10", "c": 10, "r": 16}, {"name": "11", "c": 10, "r": 15}, {"name": "12", "c": 10, "r": 14}, {"name": "13", "c": 10, "r": 13}, {"name": "14", "c": 10, "r": 12}, {"name": "15", "c": 10, "r": 11}, {"name": "16", "c": 10, "r": 10}], "color": null, "labels": null}, {"ref": "U26", "kind": "DIP16", "value": "74LS157", "c": 14, "r": 10, "rot": 0, "desc": "MUX datos bits 7..4 (BUS / DIP)", "new": false, "pads": [{"name": "1", "c": 14, "r": 10}, {"name": "2", "c": 14, "r": 11}, {"name": "3", "c": 14, "r": 12}, {"name": "4", "c": 14, "r": 13}, {"name": "5", "c": 14, "r": 14}, {"name": "6", "c": 14, "r": 15}, {"name": "7", "c": 14, "r": 16}, {"name": "8", "c": 14, "r": 17}, {"name": "9", "c": 17, "r": 17}, {"name": "10", "c": 17, "r": 16}, {"name": "11", "c": 17, "r": 15}, {"name": "12", "c": 17, "r": 14}, {"name": "13", "c": 17, "r": 13}, {"name": "14", "c": 17, "r": 12}, {"name": "15", "c": 17, "r": 11}, {"name": "16", "c": 17, "r": 10}], "color": null, "labels": null}, {"ref": "U27", "kind": "DIP16", "value": "74LS157", "c": 14, "r": 21, "rot": 0, "desc": "MUX datos bits 3..0 (BUS / DIP)", "new": false, "pads": [{"name": "1", "c": 14, "r": 21}, {"name": "2", "c": 14, "r": 22}, {"name": "3", "c": 14, "r": 23}, {"name": "4", "c": 14, "r": 24}, {"name": "5", "c": 14, "r": 25}, {"name": "6", "c": 14, "r": 26}, {"name": "7", "c": 14, "r": 27}, {"name": "8", "c": 14, "r": 28}, {"name": "9", "c": 17, "r": 28}, {"name": "10", "c": 17, "r": 27}, {"name": "11", "c": 17, "r": 26}, {"name": "12", "c": 17, "r": 25}, {"name": "13", "c": 17, "r": 24}, {"name": "14", "c": 17, "r": 23}, {"name": "15", "c": 17, "r": 22}, {"name": "16", "c": 17, "r": 21}], "color": null, "labels": null}, {"ref": "U24", "kind": "DIP16", "value": "74LS189", "c": 23, "r": 10, "rot": 0, "desc": "SRAM 16x4 nibble alto (bits 7..4)", "new": false, "pads": [{"name": "1", "c": 23, "r": 10}, {"name": "2", "c": 23, "r": 11}, {"name": "3", "c": 23, "r": 12}, {"name": "4", "c": 23, "r": 13}, {"name": "5", "c": 23, "r": 14}, {"name": "6", "c": 23, "r": 15}, {"name": "7", "c": 23, "r": 16}, {"name": "8", "c": 23, "r": 17}, {"name": "9", "c": 26, "r": 17}, {"name": "10", "c": 26, "r": 16}, {"name": "11", "c": 26, "r": 15}, {"name": "12", "c": 26, "r": 14}, {"name": "13", "c": 26, "r": 13}, {"name": "14", "c": 26, "r": 12}, {"name": "15", "c": 26, "r": 11}, {"name": "16", "c": 26, "r": 10}], "color": null, "labels": null}, {"ref": "U25", "kind": "DIP16", "value": "74LS189", "c": 23, "r": 21, "rot": 0, "desc": "SRAM 16x4 nibble bajo (bits 3..0)", "new": false, "pads": [{"name": "1", "c": 23, "r": 21}, {"name": "2", "c": 23, "r": 22}, {"name": "3", "c": 23, "r": 23}, {"name": "4", "c": 23, "r": 24}, {"name": "5", "c": 23, "r": 25}, {"name": "6", "c": 23, "r": 26}, {"name": "7", "c": 23, "r": 27}, {"name": "8", "c": 23, "r": 28}, {"name": "9", "c": 26, "r": 28}, {"name": "10", "c": 26, "r": 27}, {"name": "11", "c": 26, "r": 26}, {"name": "12", "c": 26, "r": 25}, {"name": "13", "c": 26, "r": 24}, {"name": "14", "c": 26, "r": 23}, {"name": "15", "c": 26, "r": 22}, {"name": "16", "c": 26, "r": 21}], "color": null, "labels": null}, {"ref": "U28", "kind": "DIP14", "value": "74LS04", "c": 32, "r": 10, "rot": 0, "desc": "Inversores salida bits 7..4", "new": false, "pads": [{"name": "1", "c": 32, "r": 10}, {"name": "2", "c": 32, "r": 11}, {"name": "3", "c": 32, "r": 12}, {"name": "4", "c": 32, "r": 13}, {"name": "5", "c": 32, "r": 14}, {"name": "6", "c": 32, "r": 15}, {"name": "7", "c": 32, "r": 16}, {"name": "8", "c": 35, "r": 16}, {"name": "9", "c": 35, "r": 15}, {"name": "10", "c": 35, "r": 14}, {"name": "11", "c": 35, "r": 13}, {"name": "12", "c": 35, "r": 12}, {"name": "13", "c": 35, "r": 11}, {"name": "14", "c": 35, "r": 10}], "color": null, "labels": null}, {"ref": "U29", "kind": "DIP14", "value": "74LS04", "c": 32, "r": 21, "rot": 0, "desc": "Inversores salida bits 3..0", "new": false, "pads": [{"name": "1", "c": 32, "r": 21}, {"name": "2", "c": 32, "r": 22}, {"name": "3", "c": 32, "r": 23}, {"name": "4", "c": 32, "r": 24}, {"name": "5", "c": 32, "r": 25}, {"name": "6", "c": 32, "r": 26}, {"name": "7", "c": 32, "r": 27}, {"name": "8", "c": 35, "r": 27}, {"name": "9", "c": 35, "r": 26}, {"name": "10", "c": 35, "r": 25}, {"name": "11", "c": 35, "r": 24}, {"name": "12", "c": 35, "r": 23}, {"name": "13", "c": 35, "r": 22}, {"name": "14", "c": 35, "r": 21}], "color": null, "labels": null}, {"ref": "U30", "kind": "DIP20", "value": "74LS245", "c": 42, "r": 10, "rot": 0, "desc": "Transceptor triestado hacia Bus W", "new": false, "pads": [{"name": "1", "c": 42, "r": 10}, {"name": "2", "c": 42, "r": 11}, {"name": "3", "c": 42, "r": 12}, {"name": "4", "c": 42, "r": 13}, {"name": "5", "c": 42, "r": 14}, {"name": "6", "c": 42, "r": 15}, {"name": "7", "c": 42, "r": 16}, {"name": "8", "c": 42, "r": 17}, {"name": "9", "c": 42, "r": 18}, {"name": "10", "c": 42, "r": 19}, {"name": "11", "c": 45, "r": 19}, {"name": "12", "c": 45, "r": 18}, {"name": "13", "c": 45, "r": 17}, {"name": "14", "c": 45, "r": 16}, {"name": "15", "c": 45, "r": 15}, {"name": "16", "c": 45, "r": 14}, {"name": "17", "c": 45, "r": 13}, {"name": "18", "c": 45, "r": 12}, {"name": "19", "c": 45, "r": 11}, {"name": "20", "c": 45, "r": 10}], "color": null, "labels": null}, {"ref": "U31", "kind": "DIP14", "value": "74LS00", "c": 42, "r": 21, "rot": 0, "desc": "NAND RI * pulso de flanco CLK (junto a J3)", "new": false, "pads": [{"name": "1", "c": 42, "r": 21}, {"name": "2", "c": 42, "r": 22}, {"name": "3", "c": 42, "r": 23}, {"name": "4", "c": 42, "r": 24}, {"name": "5", "c": 42, "r": 25}, {"name": "6", "c": 42, "r": 26}, {"name": "7", "c": 42, "r": 27}, {"name": "8", "c": 45, "r": 27}, {"name": "9", "c": 45, "r": 26}, {"name": "10", "c": 45, "r": 25}, {"name": "11", "c": 45, "r": 24}, {"name": "12", "c": 45, "r": 23}, {"name": "13", "c": 45, "r": 22}, {"name": "14", "c": 45, "r": 21}], "color": null, "labels": null}, {"ref": "C7", "kind": "C508", "value": "10nF", "c": 49, "r": 22, "rot": 180, "desc": "Detector de flanco RC en CLK (0.01 uF, funcional de ram.sch)", "new": false, "pads": [{"name": "1", "c": 49, "r": 22}, {"name": "2", "c": 47, "r": 22}], "color": null, "labels": null}, {"ref": "R58", "kind": "R762", "value": "1k", "c": 47, "r": 23, "rot": 270, "desc": "Detector de flanco RC en CLK (R58 = 1 kOhm a GND)", "new": false, "pads": [{"name": "1", "c": 47, "r": 23}, {"name": "2", "c": 47, "r": 26}], "color": null, "labels": null}, {"ref": "SW4", "kind": "PUSH6", "value": "WRITE", "c": 3, "r": 3, "rot": 0, "desc": "Pulsador de escritura manual", "new": false, "pads": [{"name": "1", "c": 3, "r": 3}, {"name": "1", "c": 6, "r": 3}, {"name": "2", "c": 3, "r": 5}, {"name": "2", "c": 6, "r": 5}], "color": null, "labels": null}, {"ref": "SW3", "kind": "SWDIP8", "value": "DIP x8", "c": 11, "r": 6, "rot": 90, "desc": "Dato manual D7..D0 (MSB izquierda)", "new": false, "pads": [{"name": "1", "c": 11, "r": 6}, {"name": "2", "c": 12, "r": 6}, {"name": "3", "c": 13, "r": 6}, {"name": "4", "c": 14, "r": 6}, {"name": "5", "c": 15, "r": 6}, {"name": "6", "c": 16, "r": 6}, {"name": "7", "c": 17, "r": 6}, {"name": "8", "c": 18, "r": 6}, {"name": "9", "c": 18, "r": 3}, {"name": "10", "c": 17, "r": 3}, {"name": "11", "c": 16, "r": 3}, {"name": "12", "c": 15, "r": 3}, {"name": "13", "c": 14, "r": 3}, {"name": "14", "c": 13, "r": 3}, {"name": "15", "c": 12, "r": 3}, {"name": "16", "c": 11, "r": 3}], "color": null, "labels": null}, {"ref": "J1", "kind": "HDR6", "value": "DESDE MAR", "c": 1, "r": 19, "rot": 0, "desc": "Entrada MAR -> RAM en borde izquierdo (GND, PROG, A3..A0)", "new": false, "pads": [{"name": "1", "c": 1, "r": 19}, {"name": "2", "c": 1, "r": 20}, {"name": "3", "c": 1, "r": 21}, {"name": "4", "c": 1, "r": 22}, {"name": "5", "c": 1, "r": 23}, {"name": "6", "c": 1, "r": 24}], "color": null, "labels": ["GND", "PROG", "A3", "A2", "A1", "A0"]}, {"ref": "D36", "kind": "LED5", "value": "ROJO", "c": 29, "r": 3, "rot": 180, "desc": "LED dato D7", "new": false, "pads": [{"name": "1", "c": 29, "r": 3}, {"name": "2", "c": 28, "r": 3}], "color": "#ff2b2b", "labels": null}, {"ref": "R50", "kind": "R762", "value": "220 (sug. 1k)", "c": 28, "r": 4, "rot": 270, "desc": "Limitadora LED D7", "new": false, "pads": [{"name": "1", "c": 28, "r": 4}, {"name": "2", "c": 28, "r": 7}], "color": null, "labels": null}, {"ref": "D37", "kind": "LED5", "value": "ROJO", "c": 32, "r": 3, "rot": 180, "desc": "LED dato D6", "new": false, "pads": [{"name": "1", "c": 32, "r": 3}, {"name": "2", "c": 31, "r": 3}], "color": "#ff2b2b", "labels": null}, {"ref": "R51", "kind": "R762", "value": "220 (sug. 1k)", "c": 31, "r": 4, "rot": 270, "desc": "Limitadora LED D6", "new": false, "pads": [{"name": "1", "c": 31, "r": 4}, {"name": "2", "c": 31, "r": 7}], "color": null, "labels": null}, {"ref": "D38", "kind": "LED5", "value": "ROJO", "c": 35, "r": 3, "rot": 180, "desc": "LED dato D5", "new": false, "pads": [{"name": "1", "c": 35, "r": 3}, {"name": "2", "c": 34, "r": 3}], "color": "#ff2b2b", "labels": null}, {"ref": "R52", "kind": "R762", "value": "220 (sug. 1k)", "c": 34, "r": 4, "rot": 270, "desc": "Limitadora LED D5", "new": false, "pads": [{"name": "1", "c": 34, "r": 4}, {"name": "2", "c": 34, "r": 7}], "color": null, "labels": null}, {"ref": "D39", "kind": "LED5", "value": "ROJO", "c": 38, "r": 3, "rot": 180, "desc": "LED dato D4", "new": false, "pads": [{"name": "1", "c": 38, "r": 3}, {"name": "2", "c": 37, "r": 3}], "color": "#ff2b2b", "labels": null}, {"ref": "R53", "kind": "R762", "value": "220 (sug. 1k)", "c": 37, "r": 4, "rot": 270, "desc": "Limitadora LED D4", "new": false, "pads": [{"name": "1", "c": 37, "r": 4}, {"name": "2", "c": 37, "r": 7}], "color": null, "labels": null}, {"ref": "D40", "kind": "LED5", "value": "ROJO", "c": 41, "r": 3, "rot": 180, "desc": "LED dato D3", "new": false, "pads": [{"name": "1", "c": 41, "r": 3}, {"name": "2", "c": 40, "r": 3}], "color": "#ff2b2b", "labels": null}, {"ref": "R54", "kind": "R762", "value": "220 (sug. 1k)", "c": 40, "r": 4, "rot": 270, "desc": "Limitadora LED D3", "new": false, "pads": [{"name": "1", "c": 40, "r": 4}, {"name": "2", "c": 40, "r": 7}], "color": null, "labels": null}, {"ref": "D41", "kind": "LED5", "value": "ROJO", "c": 44, "r": 3, "rot": 180, "desc": "LED dato D2", "new": false, "pads": [{"name": "1", "c": 44, "r": 3}, {"name": "2", "c": 43, "r": 3}], "color": "#ff2b2b", "labels": null}, {"ref": "R55", "kind": "R762", "value": "220 (sug. 1k)", "c": 43, "r": 4, "rot": 270, "desc": "Limitadora LED D2", "new": false, "pads": [{"name": "1", "c": 43, "r": 4}, {"name": "2", "c": 43, "r": 7}], "color": null, "labels": null}, {"ref": "D42", "kind": "LED5", "value": "ROJO", "c": 47, "r": 3, "rot": 180, "desc": "LED dato D1", "new": false, "pads": [{"name": "1", "c": 47, "r": 3}, {"name": "2", "c": 46, "r": 3}], "color": "#ff2b2b", "labels": null}, {"ref": "R56", "kind": "R762", "value": "220 (sug. 1k)", "c": 46, "r": 4, "rot": 270, "desc": "Limitadora LED D1", "new": false, "pads": [{"name": "1", "c": 46, "r": 4}, {"name": "2", "c": 46, "r": 7}], "color": null, "labels": null}, {"ref": "D43", "kind": "LED5", "value": "ROJO", "c": 50, "r": 3, "rot": 180, "desc": "LED dato D0", "new": false, "pads": [{"name": "1", "c": 50, "r": 3}, {"name": "2", "c": 49, "r": 3}], "color": "#ff2b2b", "labels": null}, {"ref": "R57", "kind": "R762", "value": "220 (sug. 1k)", "c": 49, "r": 4, "rot": 270, "desc": "Limitadora LED D0", "new": false, "pads": [{"name": "1", "c": 49, "r": 4}, {"name": "2", "c": 49, "r": 7}], "color": null, "labels": null}, {"ref": "C16", "kind": "C254", "value": "100nF", "c": 47, "r": 9, "rot": 90, "desc": "Desacoplo entrada 1 (0.1 uF en paralelo VCC -> GND, ram.sch)", "new": false, "pads": [{"name": "1", "c": 47, "r": 9}, {"name": "2", "c": 47, "r": 8}], "color": null, "labels": null}, {"ref": "C17", "kind": "C254", "value": "100nF", "c": 48, "r": 9, "rot": 90, "desc": "Desacoplo entrada 2 (0.1 uF en paralelo VCC -> GND, ram.sch)", "new": false, "pads": [{"name": "1", "c": 48, "r": 9}, {"name": "2", "c": 48, "r": 8}], "color": null, "labels": null}, {"ref": "J3", "kind": "HDR16", "value": "BUS W/CTRL", "c": 50, "r": 8, "rot": 0, "desc": "Al Bus W, control y alimentacion", "new": false, "pads": [{"name": "1", "c": 50, "r": 8}, {"name": "2", "c": 50, "r": 9}, {"name": "3", "c": 50, "r": 10}, {"name": "4", "c": 50, "r": 11}, {"name": "5", "c": 50, "r": 12}, {"name": "6", "c": 50, "r": 13}, {"name": "7", "c": 50, "r": 14}, {"name": "8", "c": 50, "r": 15}, {"name": "9", "c": 50, "r": 16}, {"name": "10", "c": 50, "r": 17}, {"name": "11", "c": 50, "r": 18}, {"name": "12", "c": 50, "r": 19}, {"name": "13", "c": 50, "r": 20}, {"name": "14", "c": 50, "r": 21}, {"name": "15", "c": 50, "r": 22}, {"name": "16", "c": 50, "r": 23}], "color": null, "labels": ["GND", "VCC", "LLAVE", "~RO", "BUS_7", "BUS_6", "BUS_5", "BUS_4", "BUS_3", "BUS_2", "BUS_1", "BUS_0", "VCC", "RI", "CLK", "GND"]}], "rails": [{"net": "GND", "cls": "gnd", "segs": [[[2, 1], [50, 1]], [[50, 1], [50, 8]], [[47, 8], [50, 8]], [[2, 1], [2, 29]], [[2, 18], [41, 18]], [[41, 18], [41, 19]], [[2, 29], [50, 29]], [[50, 23], [50, 29]]]}, {"net": "VCC", "cls": "vcc", "segs": [[[4, 9], [50, 9]], [[4, 20], [50, 20]]]}], "wires": [{"id": "W1", "net": "VCC", "cls": "vcc", "type": "potencia", "a": [4, 9], "b": [4, 20], "al": "Riel VCC", "bl": "Riel VCC", "path": [[4.0, 9.0], [4.0, 20.0]]}, {"id": "W2", "net": "VCC", "cls": "vcc", "type": "potencia", "a": [40, 9], "b": [40, 20], "al": "Riel VCC", "bl": "Riel VCC", "path": [[40.0, 9.0], [40.0, 20.0]]}, {"id": "W3", "net": "CLK", "cls": "ctrl", "type": "puente", "a": [50, 22], "b": [49, 22], "al": "J3.15", "bl": "C7.1", "path": [[50.0, 22.0], [49.0, 22.0]]}, {"id": "W4", "net": "PULSO", "cls": "ctrl", "type": "puente", "a": [47, 22], "b": [47, 23], "al": "C7.2", "bl": "R58.1", "path": [[47.0, 22.0], [47.0, 23.0]]}, {"id": "W5", "net": "GND", "cls": "gnd", "type": "puente", "a": [2, 3], "b": [3, 3], "al": "Riel GND", "bl": "SW4.1", "path": [[2.0, 3.0], [3.0, 3.0]]}, {"id": "W6", "net": "GND", "cls": "gnd", "type": "puente", "a": [2, 19], "b": [1, 19], "al": "Riel GND", "bl": "J1.1", "path": [[2.0, 19.0], [1.0, 19.0]]}, {"id": "W7", "net": "GND", "cls": "gnd", "type": "puente", "a": [7, 11], "b": [7, 12], "al": "U32.2", "bl": "U32.3", "path": [[7.0, 11.0], [7.0, 12.0]]}, {"id": "W8", "net": "GND", "cls": "gnd", "type": "puente", "a": [7, 14], "b": [7, 15], "al": "U32.5", "bl": "U32.6", "path": [[7.0, 14.0], [7.0, 15.0]]}, {"id": "W9", "net": "GND", "cls": "gnd", "type": "puente", "a": [7, 18], "b": [7, 17], "al": "Riel GND", "bl": "U32.8", "path": [[7.0, 18.0], [7.0, 17.0]]}, {"id": "W10", "net": "GND", "cls": "gnd", "type": "puente", "a": [10, 15], "b": [10, 16], "al": "U32.11", "bl": "U32.10", "path": [[10.0, 15.0], [10.0, 16.0]]}, {"id": "W11", "net": "GND", "cls": "gnd", "type": "puente", "a": [12, 3], "b": [11, 3], "al": "SW3.15", "bl": "SW3.16", "path": [[12.0, 3.0], [11.0, 3.0]]}, {"id": "W12", "net": "GND", "cls": "gnd", "type": "puente", "a": [13, 3], "b": [12, 3], "al": "SW3.14", "bl": "SW3.15", "path": [[13.0, 3.0], [12.0, 3.0]]}, {"id": "W13", "net": "GND", "cls": "gnd", "type": "puente", "a": [14, 3], "b": [13, 3], "al": "SW3.13", "bl": "SW3.14", "path": [[14.0, 3.0], [13.0, 3.0]]}, {"id": "W14", "net": "GND", "cls": "gnd", "type": "puente", "a": [14, 18], "b": [14, 17], "al": "Riel GND", "bl": "U26.8", "path": [[14.0, 18.0], [14.0, 17.0]]}, {"id": "W15", "net": "GND", "cls": "gnd", "type": "puente", "a": [14, 29], "b": [14, 28], "al": "Riel GND", "bl": "U27.8", "path": [[14.0, 29.0], [14.0, 28.0]]}, {"id": "W16", "net": "GND", "cls": "gnd", "type": "puente", "a": [15, 3], "b": [14, 3], "al": "SW3.12", "bl": "SW3.13", "path": [[15.0, 3.0], [14.0, 3.0]]}, {"id": "W17", "net": "GND", "cls": "gnd", "type": "puente", "a": [16, 3], "b": [15, 3], "al": "SW3.11", "bl": "SW3.12", "path": [[16.0, 3.0], [15.0, 3.0]]}, {"id": "W18", "net": "GND", "cls": "gnd", "type": "puente", "a": [17, 3], "b": [16, 3], "al": "SW3.10", "bl": "SW3.11", "path": [[17.0, 3.0], [16.0, 3.0]]}, {"id": "W19", "net": "GND", "cls": "gnd", "type": "puente", "a": [18, 3], "b": [17, 3], "al": "SW3.9", "bl": "SW3.10", "path": [[18.0, 3.0], [17.0, 3.0]]}, {"id": "W20", "net": "GND", "cls": "gnd", "type": "puente", "a": [23, 18], "b": [23, 17], "al": "Riel GND", "bl": "U24.8", "path": [[23.0, 18.0], [23.0, 17.0]]}, {"id": "W21", "net": "GND", "cls": "gnd", "type": "puente", "a": [23, 29], "b": [23, 28], "al": "Riel GND", "bl": "U25.8", "path": [[23.0, 29.0], [23.0, 28.0]]}, {"id": "W22", "net": "GND", "cls": "gnd", "type": "puente", "a": [41, 19], "b": [42, 19], "al": "Riel GND", "bl": "U30.10", "path": [[41.0, 19.0], [42.0, 19.0]]}, {"id": "W23", "net": "GND", "cls": "gnd", "type": "puente", "a": [42, 25], "b": [42, 24], "al": "U31.5", "bl": "U31.4", "path": [[42.0, 25.0], [42.0, 24.0]]}, {"id": "W24", "net": "GND", "cls": "gnd", "type": "puente", "a": [45, 23], "b": [45, 22], "al": "U31.12", "bl": "U31.13", "path": [[45.0, 23.0], [45.0, 22.0]]}, {"id": "W25", "net": "GND", "cls": "gnd", "type": "puente", "a": [45, 26], "b": [45, 25], "al": "U31.9", "bl": "U31.10", "path": [[45.0, 26.0], [45.0, 25.0]]}, {"id": "W26", "net": "LED_D0", "cls": "led", "type": "puente", "a": [49, 4], "b": [49, 3], "al": "R57.1", "bl": "D43.2", "path": [[49.0, 4.0], [49.0, 3.0]]}, {"id": "W27", "net": "LED_D1", "cls": "led", "type": "puente", "a": [46, 4], "b": [46, 3], "al": "R56.1", "bl": "D42.2", "path": [[46.0, 4.0], [46.0, 3.0]]}, {"id": "W28", "net": "LED_D2", "cls": "led", "type": "puente", "a": [43, 4], "b": [43, 3], "al": "R55.1", "bl": "D41.2", "path": [[43.0, 4.0], [43.0, 3.0]]}, {"id": "W29", "net": "LED_D3", "cls": "led", "type": "puente", "a": [40, 4], "b": [40, 3], "al": "R54.1", "bl": "D40.2", "path": [[40.0, 4.0], [40.0, 3.0]]}, {"id": "W30", "net": "LED_D4", "cls": "led", "type": "puente", "a": [37, 4], "b": [37, 3], "al": "R53.1", "bl": "D39.2", "path": [[37.0, 4.0], [37.0, 3.0]]}, {"id": "W31", "net": "LED_D5", "cls": "led", "type": "puente", "a": [34, 4], "b": [34, 3], "al": "R52.1", "bl": "D38.2", "path": [[34.0, 4.0], [34.0, 3.0]]}, {"id": "W32", "net": "LED_D6", "cls": "led", "type": "puente", "a": [31, 4], "b": [31, 3], "al": "R51.1", "bl": "D37.2", "path": [[31.0, 4.0], [31.0, 3.0]]}, {"id": "W33", "net": "LED_D7", "cls": "led", "type": "puente", "a": [28, 4], "b": [28, 3], "al": "R50.1", "bl": "D36.2", "path": [[28.0, 4.0], [28.0, 3.0]]}, {"id": "W34", "net": "VCC", "cls": "vcc", "type": "puente", "a": [10, 9], "b": [10, 10], "al": "Riel VCC", "bl": "U32.16", "path": [[10.0, 9.0], [10.0, 10.0]]}, {"id": "W35", "net": "VCC", "cls": "vcc", "type": "puente", "a": [17, 9], "b": [17, 10], "al": "Riel VCC", "bl": "U26.16", "path": [[17.0, 9.0], [17.0, 10.0]]}, {"id": "W36", "net": "VCC", "cls": "vcc", "type": "puente", "a": [17, 20], "b": [17, 21], "al": "Riel VCC", "bl": "U27.16", "path": [[17.0, 20.0], [17.0, 21.0]]}, {"id": "W37", "net": "VCC", "cls": "vcc", "type": "puente", "a": [26, 9], "b": [26, 10], "al": "Riel VCC", "bl": "U24.16", "path": [[26.0, 9.0], [26.0, 10.0]]}, {"id": "W38", "net": "VCC", "cls": "vcc", "type": "puente", "a": [26, 20], "b": [26, 21], "al": "Riel VCC", "bl": "U25.16", "path": [[26.0, 20.0], [26.0, 21.0]]}, {"id": "W39", "net": "VCC", "cls": "vcc", "type": "puente", "a": [35, 9], "b": [35, 10], "al": "Riel VCC", "bl": "U28.14", "path": [[35.0, 9.0], [35.0, 10.0]]}, {"id": "W40", "net": "VCC", "cls": "vcc", "type": "puente", "a": [35, 20], "b": [35, 21], "al": "Riel VCC", "bl": "U29.14", "path": [[35.0, 20.0], [35.0, 21.0]]}, {"id": "W41", "net": "VCC", "cls": "vcc", "type": "puente", "a": [42, 9], "b": [42, 10], "al": "Riel VCC", "bl": "U30.1", "path": [[42.0, 9.0], [42.0, 10.0]]}, {"id": "W42", "net": "VCC", "cls": "vcc", "type": "puente", "a": [45, 9], "b": [45, 10], "al": "Riel VCC", "bl": "U30.20", "path": [[45.0, 9.0], [45.0, 10.0]]}, {"id": "W43", "net": "VCC", "cls": "vcc", "type": "puente", "a": [45, 20], "b": [45, 21], "al": "Riel VCC", "bl": "U31.14", "path": [[45.0, 20.0], [45.0, 21.0]]}, {"id": "W44", "net": "BUS_0", "cls": "bus", "type": "desnudo", "a": [50, 19], "b": [45, 19], "al": "J3.12", "bl": "U30.11", "path": [[50.0, 19.0], [45.0, 19.0]]}, {"id": "W45", "net": "BUS_1", "cls": "bus", "type": "desnudo", "a": [50, 18], "b": [45, 18], "al": "J3.11", "bl": "U30.12", "path": [[50.0, 18.0], [45.0, 18.0]]}, {"id": "W46", "net": "BUS_2", "cls": "bus", "type": "desnudo", "a": [50, 17], "b": [45, 17], "al": "J3.10", "bl": "U30.13", "path": [[50.0, 17.0], [45.0, 17.0]]}, {"id": "W47", "net": "BUS_3", "cls": "bus", "type": "desnudo", "a": [50, 16], "b": [45, 16], "al": "J3.9", "bl": "U30.14", "path": [[50.0, 16.0], [45.0, 16.0]]}, {"id": "W48", "net": "BUS_4", "cls": "bus", "type": "desnudo", "a": [50, 15], "b": [45, 15], "al": "J3.8", "bl": "U30.15", "path": [[50.0, 15.0], [45.0, 15.0]]}, {"id": "W49", "net": "BUS_5", "cls": "bus", "type": "desnudo", "a": [50, 14], "b": [45, 14], "al": "J3.7", "bl": "U30.16", "path": [[50.0, 14.0], [45.0, 14.0]]}, {"id": "W50", "net": "BUS_6", "cls": "bus", "type": "desnudo", "a": [50, 13], "b": [45, 13], "al": "J3.6", "bl": "U30.17", "path": [[50.0, 13.0], [45.0, 13.0]]}, {"id": "W51", "net": "BUS_7", "cls": "bus", "type": "desnudo", "a": [50, 12], "b": [45, 12], "al": "J3.5", "bl": "U30.18", "path": [[50.0, 12.0], [45.0, 12.0]]}, {"id": "W52", "net": "~RO", "cls": "ctrl", "type": "desnudo", "a": [50, 11], "b": [45, 11], "al": "J3.4", "bl": "U30.19", "path": [[50.0, 11.0], [45.0, 11.0]]}, {"id": "W53", "net": "GND", "cls": "gnd", "type": "desnudo", "a": [2, 11], "b": [7, 11], "al": "Riel GND", "bl": "U32.2", "path": [[2.0, 11.0], [7.0, 11.0]]}, {"id": "W54", "net": "GND", "cls": "gnd", "type": "desnudo", "a": [2, 14], "b": [7, 14], "al": "Riel GND", "bl": "U32.5", "path": [[2.0, 14.0], [7.0, 14.0]]}, {"id": "W55", "net": "GND", "cls": "gnd", "type": "desnudo", "a": [7, 11], "b": [10, 11], "al": "U32.2", "bl": "U32.15", "path": [[7.0, 11.0], [10.0, 11.0]]}, {"id": "W56", "net": "GND", "cls": "gnd", "type": "desnudo", "a": [7, 15], "b": [10, 15], "al": "U32.6", "bl": "U32.11", "path": [[7.0, 15.0], [10.0, 15.0]]}, {"id": "W57", "net": "GND", "cls": "gnd", "type": "desnudo", "a": [18, 1], "b": [18, 3], "al": "Riel GND", "bl": "SW3.9", "path": [[18.0, 1.0], [18.0, 3.0]]}, {"id": "W58", "net": "GND", "cls": "gnd", "type": "desnudo", "a": [23, 11], "b": [17, 11], "al": "U24.2", "bl": "U26.15", "path": [[23.0, 11.0], [17.0, 11.0]]}, {"id": "W59", "net": "GND", "cls": "gnd", "type": "desnudo", "a": [23, 22], "b": [17, 22], "al": "U25.2", "bl": "U27.15", "path": [[23.0, 22.0], [17.0, 22.0]]}, {"id": "W60", "net": "GND", "cls": "gnd", "type": "desnudo", "a": [29, 1], "b": [29, 3], "al": "Riel GND", "bl": "D36.1", "path": [[29.0, 1.0], [29.0, 3.0]]}, {"id": "W61", "net": "GND", "cls": "gnd", "type": "desnudo", "a": [32, 1], "b": [32, 3], "al": "Riel GND", "bl": "D37.1", "path": [[32.0, 1.0], [32.0, 3.0]]}, {"id": "W62", "net": "GND", "cls": "gnd", "type": "desnudo", "a": [32, 18], "b": [32, 16], "al": "Riel GND", "bl": "U28.7", "path": [[32.0, 18.0], [32.0, 16.0]]}, {"id": "W63", "net": "GND", "cls": "gnd", "type": "desnudo", "a": [32, 29], "b": [32, 27], "al": "Riel GND", "bl": "U29.7", "path": [[32.0, 29.0], [32.0, 27.0]]}, {"id": "W64", "net": "GND", "cls": "gnd", "type": "desnudo", "a": [35, 1], "b": [35, 3], "al": "Riel GND", "bl": "D38.1", "path": [[35.0, 1.0], [35.0, 3.0]]}, {"id": "W65", "net": "GND", "cls": "gnd", "type": "desnudo", "a": [38, 1], "b": [38, 3], "al": "Riel GND", "bl": "D39.1", "path": [[38.0, 1.0], [38.0, 3.0]]}, {"id": "W66", "net": "GND", "cls": "gnd", "type": "desnudo", "a": [41, 1], "b": [41, 3], "al": "Riel GND", "bl": "D40.1", "path": [[41.0, 1.0], [41.0, 3.0]]}, {"id": "W67", "net": "GND", "cls": "gnd", "type": "desnudo", "a": [42, 29], "b": [42, 27], "al": "Riel GND", "bl": "U31.7", "path": [[42.0, 29.0], [42.0, 27.0]]}, {"id": "W68", "net": "GND", "cls": "gnd", "type": "desnudo", "a": [44, 1], "b": [44, 3], "al": "Riel GND", "bl": "D41.1", "path": [[44.0, 1.0], [44.0, 3.0]]}, {"id": "W69", "net": "GND", "cls": "gnd", "type": "desnudo", "a": [45, 25], "b": [42, 25], "al": "U31.10", "bl": "U31.5", "path": [[45.0, 25.0], [42.0, 25.0]]}, {"id": "W70", "net": "GND", "cls": "gnd", "type": "desnudo", "a": [47, 1], "b": [47, 3], "al": "Riel GND", "bl": "D42.1", "path": [[47.0, 1.0], [47.0, 3.0]]}, {"id": "W71", "net": "GND", "cls": "gnd", "type": "desnudo", "a": [47, 26], "b": [45, 26], "al": "R58.2", "bl": "U31.9", "path": [[47.0, 26.0], [45.0, 26.0]]}, {"id": "W72", "net": "GND", "cls": "gnd", "type": "desnudo", "a": [47, 29], "b": [47, 26], "al": "Riel GND", "bl": "R58.2", "path": [[47.0, 29.0], [47.0, 26.0]]}, {"id": "W73", "net": "A0", "cls": "addr", "type": "aislado", "a": [1, 24], "b": [23, 21], "al": "J1.6", "bl": "U25.1", "path": [[1.0, 24.0], [1.5, 24.0], [1.5, 21.5], [23.0, 21.5], [23.0, 21.0]]}, {"id": "W74", "net": "A0", "cls": "addr", "type": "aislado", "a": [23, 21], "b": [23, 10], "al": "U25.1", "bl": "U24.1", "path": [[23.0, 21.0], [24.5, 21.0], [24.5, 10.0], [23.0, 10.0]]}, {"id": "W75", "net": "A1", "cls": "addr", "type": "aislado", "a": [1, 23], "b": [26, 22], "al": "J1.5", "bl": "U25.15", "path": [[1.0, 23.0], [1.0, 22.5], [23.5, 22.5], [23.5, 21.5], [26.0, 21.5], [26.0, 22.0]]}, {"id": "W76", "net": "A1", "cls": "addr", "type": "aislado", "a": [26, 22], "b": [26, 11], "al": "U25.15", "bl": "U24.15", "path": [[26.0, 22.0], [25.5, 22.0], [25.5, 11.0], [26.0, 11.0]]}, {"id": "W77", "net": "A2", "cls": "addr", "type": "aislado", "a": [1, 22], "b": [26, 23], "al": "J1.4", "bl": "U25.14", "path": [[1.0, 22.0], [1.0, 21.5], [1.5, 21.5], [1.5, 20.5], [25.0, 20.5], [25.0, 23.0], [26.0, 23.0]]}, {"id": "W78", "net": "A2", "cls": "addr", "type": "aislado", "a": [26, 23], "b": [26, 12], "al": "U25.14", "bl": "U24.14", "path": [[26.0, 23.0], [27.5, 23.0], [27.5, 12.0], [26.0, 12.0]]}, {"id": "W79", "net": "A3", "cls": "addr", "type": "aislado", "a": [1, 21], "b": [26, 24], "al": "J1.3", "bl": "U25.13", "path": [[1.0, 21.0], [1.0, 20.5], [1.5, 20.5], [1.5, 19.5], [9.5, 19.5], [9.5, 25.5], [25.5, 25.5], [25.5, 24.0], [26.0, 24.0]]}, {"id": "W80", "net": "A3", "cls": "addr", "type": "aislado", "a": [26, 24], "b": [26, 13], "al": "U25.13", "bl": "U24.13", "path": [[26.0, 24.0], [28.5, 24.0], [28.5, 13.0], [26.0, 13.0]]}, {"id": "W81", "net": "PROG", "cls": "addr", "type": "aislado", "a": [1, 20], "b": [14, 21], "al": "J1.2", "bl": "U27.1", "path": [[1.0, 20.0], [1.0, 19.5], [1.5, 19.5], [1.5, 18.5], [14.0, 18.5], [14.0, 21.0]]}, {"id": "W82", "net": "PROG", "cls": "addr", "type": "aislado", "a": [14, 10], "b": [7, 10], "al": "U26.1", "bl": "U32.1", "path": [[14.0, 10.0], [14.0, 9.5], [7.0, 9.5], [7.0, 10.0]]}, {"id": "W83", "net": "PROG", "cls": "addr", "type": "aislado", "a": [14, 21], "b": [14, 10], "al": "U27.1", "bl": "U26.1", "path": [[14.0, 21.0], [12.5, 21.0], [12.5, 14.5], [13.0, 14.5], [13.0, 10.0], [14.0, 10.0]]}, {"id": "W84", "net": "BUS_0", "cls": "bus", "type": "aislado", "a": [45, 19], "b": [14, 26], "al": "U30.11", "bl": "U27.6", "path": [[45.0, 19.0], [44.5, 19.0], [44.5, 29.5], [13.5, 29.5], [13.5, 26.0], [14.0, 26.0]]}, {"id": "W85", "net": "BUS_1", "cls": "bus", "type": "aislado", "a": [45, 18], "b": [17, 27], "al": "U30.12", "bl": "U27.10", "path": [[45.0, 18.0], [45.0, 18.5], [17.5, 18.5], [17.5, 27.0], [17.0, 27.0]]}, {"id": "W86", "net": "BUS_2", "cls": "bus", "type": "aislado", "a": [45, 17], "b": [14, 23], "al": "U30.13", "bl": "U27.3", "path": [[45.0, 17.0], [45.5, 17.0], [45.5, 19.5], [11.5, 19.5], [11.5, 23.0], [14.0, 23.0]]}, {"id": "W87", "net": "BUS_3", "cls": "bus", "type": "aislado", "a": [45, 16], "b": [17, 24], "al": "U30.14", "bl": "U27.13", "path": [[45.0, 16.0], [43.5, 16.0], [43.5, 9.5], [18.5, 9.5], [18.5, 24.0], [17.0, 24.0]]}, {"id": "W88", "net": "BUS_4", "cls": "bus", "type": "aislado", "a": [45, 15], "b": [14, 15], "al": "U30.15", "bl": "U26.6", "path": [[45.0, 15.0], [45.5, 15.0], [45.5, 5.5], [19.5, 5.5], [19.5, 14.5], [14.0, 14.5], [14.0, 15.0]]}, {"id": "W89", "net": "BUS_5", "cls": "bus", "type": "aislado", "a": [45, 14], "b": [17, 16], "al": "U30.16", "bl": "U26.10", "path": [[45.0, 14.0], [46.5, 14.0], [46.5, 4.5], [20.5, 4.5], [20.5, 16.0], [17.0, 16.0]]}, {"id": "W90", "net": "BUS_6", "cls": "bus", "type": "aislado", "a": [45, 13], "b": [14, 12], "al": "U30.17", "bl": "U26.3", "path": [[45.0, 13.0], [44.0, 13.0], [44.0, 9.5], [43.5, 9.5], [43.5, 8.5], [18.5, 8.5], [18.5, 9.5], [15.0, 9.5], [15.0, 12.0], [14.0, 12.0]]}, {"id": "W91", "net": "BUS_7", "cls": "bus", "type": "aislado", "a": [45, 12], "b": [17, 13], "al": "U30.18", "bl": "U26.13", "path": [[45.0, 12.0], [43.0, 12.0], [43.0, 10.5], [35.5, 10.5], [35.5, 7.5], [21.5, 7.5], [21.5, 11.5], [18.0, 11.5], [18.0, 13.0], [17.0, 13.0]]}, {"id": "W92", "net": "PULSO", "cls": "ctrl", "type": "aislado", "a": [42, 22], "b": [47, 22], "al": "U31.2", "bl": "C7.2", "path": [[42.0, 22.0], [42.0, 21.5], [47.0, 21.5], [47.0, 22.0]]}, {"id": "W93", "net": "RI", "cls": "ctrl", "type": "aislado", "a": [50, 21], "b": [42, 21], "al": "J3.14", "bl": "U31.1", "path": [[50.0, 21.0], [50.0, 20.5], [42.0, 20.5], [42.0, 21.0]]}, {"id": "W94", "net": "WE_RUN", "cls": "ctrl", "type": "aislado", "a": [42, 23], "b": [10, 13], "al": "U31.3", "bl": "U32.13", "path": [[42.0, 23.0], [42.0, 23.5], [10.5, 23.5], [10.5, 13.0], [10.0, 13.0]]}, {"id": "W95", "net": "WR_BTN", "cls": "ctrl", "type": "aislado", "a": [6, 5], "b": [10, 12], "al": "SW4.2", "bl": "U32.14", "path": [[6.0, 5.0], [9.5, 5.0], [9.5, 12.0], [10.0, 12.0]]}, {"id": "W96", "net": "~WE", "cls": "ctrl", "type": "aislado", "a": [10, 14], "b": [23, 12], "al": "U32.12", "bl": "U24.3", "path": [[10.0, 14.0], [9.5, 14.0], [9.5, 12.5], [23.0, 12.5], [23.0, 12.0]]}, {"id": "W97", "net": "~WE", "cls": "ctrl", "type": "aislado", "a": [23, 12], "b": [23, 23], "al": "U24.3", "bl": "U25.3", "path": [[23.0, 12.0], [21.5, 12.0], [21.5, 23.0], [23.0, 23.0]]}, {"id": "W98", "net": "DI0", "cls": "data", "type": "aislado", "a": [14, 27], "b": [26, 27], "al": "U27.7", "bl": "U25.10", "path": [[14.0, 27.0], [14.0, 26.5], [26.0, 26.5], [26.0, 27.0]]}, {"id": "W99", "net": "DI1", "cls": "data", "type": "aislado", "a": [17, 28], "b": [23, 26], "al": "U27.9", "bl": "U25.6", "path": [[17.0, 28.0], [17.0, 27.5], [22.5, 27.5], [22.5, 26.0], [23.0, 26.0]]}, {"id": "W100", "net": "DI2", "cls": "data", "type": "aislado", "a": [14, 24], "b": [26, 25], "al": "U27.4", "bl": "U25.12", "path": [[14.0, 24.0], [14.0, 24.5], [26.0, 24.5], [26.0, 25.0]]}, {"id": "W101", "net": "DI3", "cls": "data", "type": "aislado", "a": [17, 25], "b": [23, 24], "al": "U27.12", "bl": "U25.4", "path": [[17.0, 25.0], [22.5, 25.0], [22.5, 24.0], [23.0, 24.0]]}, {"id": "W102", "net": "DI4", "cls": "data", "type": "aislado", "a": [14, 16], "b": [26, 16], "al": "U26.7", "bl": "U24.10", "path": [[14.0, 16.0], [14.0, 15.5], [26.0, 15.5], [26.0, 16.0]]}, {"id": "W103", "net": "DI5", "cls": "data", "type": "aislado", "a": [17, 17], "b": [23, 15], "al": "U26.9", "bl": "U24.6", "path": [[17.0, 17.0], [17.0, 16.5], [22.5, 16.5], [22.5, 15.0], [23.0, 15.0]]}, {"id": "W104", "net": "DI6", "cls": "data", "type": "aislado", "a": [14, 13], "b": [26, 14], "al": "U26.4", "bl": "U24.12", "path": [[14.0, 13.0], [14.0, 13.5], [26.0, 13.5], [26.0, 14.0]]}, {"id": "W105", "net": "DI7", "cls": "data", "type": "aislado", "a": [17, 14], "b": [23, 13], "al": "U26.12", "bl": "U24.4", "path": [[17.0, 14.0], [22.5, 14.0], [22.5, 13.0], [23.0, 13.0]]}, {"id": "W106", "net": "DO0", "cls": "data", "type": "aislado", "a": [32, 26], "b": [42, 18], "al": "U29.6", "bl": "U30.9", "path": [[32.0, 26.0], [32.0, 25.5], [41.5, 25.5], [41.5, 18.0], [42.0, 18.0]]}, {"id": "W107", "net": "DO0", "cls": "data", "type": "aislado", "a": [42, 18], "b": [49, 7], "al": "U30.9", "bl": "R57.2", "path": [[42.0, 18.0], [42.0, 17.5], [48.5, 17.5], [48.5, 7.0], [49.0, 7.0]]}, {"id": "W108", "net": "DO1", "cls": "data", "type": "aislado", "a": [35, 27], "b": [42, 17], "al": "U29.8", "bl": "U30.8", "path": [[35.0, 27.0], [35.0, 26.5], [40.5, 26.5], [40.5, 17.0], [42.0, 17.0]]}, {"id": "W109", "net": "DO1", "cls": "data", "type": "aislado", "a": [42, 17], "b": [46, 7], "al": "U30.8", "bl": "R56.2", "path": [[42.0, 17.0], [44.5, 17.0], [44.5, 7.0], [46.0, 7.0]]}, {"id": "W110", "net": "DO2", "cls": "data", "type": "aislado", "a": [35, 25], "b": [42, 16], "al": "U29.10", "bl": "U30.7", "path": [[35.0, 25.0], [35.5, 25.0], [35.5, 16.5], [42.0, 16.5], [42.0, 16.0]]}, {"id": "W111", "net": "DO2", "cls": "data", "type": "aislado", "a": [42, 16], "b": [43, 7], "al": "U30.7", "bl": "R55.2", "path": [[42.0, 16.0], [42.5, 16.0], [42.5, 7.0], [43.0, 7.0]]}, {"id": "W112", "net": "DO3", "cls": "data", "type": "aislado", "a": [35, 23], "b": [42, 15], "al": "U29.12", "bl": "U30.6", "path": [[35.0, 23.0], [34.5, 23.0], [34.5, 15.5], [42.0, 15.5], [42.0, 15.0]]}, {"id": "W113", "net": "DO3", "cls": "data", "type": "aislado", "a": [42, 15], "b": [40, 7], "al": "U30.6", "bl": "R54.2", "path": [[42.0, 15.0], [40.5, 15.0], [40.5, 7.0], [40.0, 7.0]]}, {"id": "W114", "net": "DO4", "cls": "data", "type": "aislado", "a": [32, 15], "b": [42, 14], "al": "U28.6", "bl": "U30.5", "path": [[32.0, 15.0], [32.0, 14.5], [42.0, 14.5], [42.0, 14.0]]}, {"id": "W115", "net": "DO4", "cls": "data", "type": "aislado", "a": [42, 14], "b": [37, 7], "al": "U30.5", "bl": "R53.2", "path": [[42.0, 14.0], [41.5, 14.0], [41.5, 6.5], [37.0, 6.5], [37.0, 7.0]]}, {"id": "W116", "net": "DO5", "cls": "data", "type": "aislado", "a": [35, 16], "b": [34, 7], "al": "U28.8", "bl": "R52.2", "path": [[35.0, 16.0], [33.5, 16.0], [33.5, 7.0], [34.0, 7.0]]}, {"id": "W117", "net": "DO5", "cls": "data", "type": "aislado", "a": [35, 16], "b": [42, 13], "al": "U28.8", "bl": "U30.4", "path": [[35.0, 16.0], [35.5, 16.0], [35.5, 13.5], [42.0, 13.5], [42.0, 13.0]]}, {"id": "W118", "net": "DO6", "cls": "data", "type": "aislado", "a": [35, 14], "b": [42, 12], "al": "U28.10", "bl": "U30.3", "path": [[35.0, 14.0], [34.5, 14.0], [34.5, 12.5], [42.0, 12.5], [42.0, 12.0]]}, {"id": "W119", "net": "DO6", "cls": "data", "type": "aislado", "a": [35, 14], "b": [31, 7], "al": "U28.10", "bl": "R51.2", "path": [[35.0, 14.0], [35.0, 13.5], [31.5, 13.5], [31.5, 7.0], [31.0, 7.0]]}, {"id": "W120", "net": "DO7", "cls": "data", "type": "aislado", "a": [35, 12], "b": [42, 11], "al": "U28.12", "bl": "U30.2", "path": [[35.0, 12.0], [35.0, 11.5], [42.0, 11.5], [42.0, 11.0]]}, {"id": "W121", "net": "DO7", "cls": "data", "type": "aislado", "a": [35, 12], "b": [28, 7], "al": "U28.12", "bl": "R50.2", "path": [[35.0, 12.0], [34.5, 12.0], [34.5, 6.5], [28.0, 6.5], [28.0, 7.0]]}, {"id": "W122", "net": "~DO0", "cls": "data", "type": "aislado", "a": [26, 28], "b": [32, 25], "al": "U25.9", "bl": "U29.5", "path": [[26.0, 28.0], [26.0, 27.5], [31.5, 27.5], [31.5, 25.0], [32.0, 25.0]]}, {"id": "W123", "net": "~DO1", "cls": "data", "type": "aislado", "a": [23, 27], "b": [35, 26], "al": "U25.7", "bl": "U29.9", "path": [[23.0, 27.0], [23.5, 27.0], [23.5, 28.5], [34.5, 28.5], [34.5, 26.0], [35.0, 26.0]]}, {"id": "W124", "net": "~DO2", "cls": "data", "type": "aislado", "a": [26, 26], "b": [35, 24], "al": "U25.11", "bl": "U29.11", "path": [[26.0, 26.0], [26.5, 26.0], [26.5, 24.5], [35.0, 24.5], [35.0, 24.0]]}, {"id": "W125", "net": "~DO3", "cls": "data", "type": "aislado", "a": [23, 25], "b": [35, 22], "al": "U25.5", "bl": "U29.13", "path": [[23.0, 25.0], [23.5, 25.0], [23.5, 22.5], [35.0, 22.5], [35.0, 22.0]]}, {"id": "W126", "net": "~DO4", "cls": "data", "type": "aislado", "a": [26, 17], "b": [32, 14], "al": "U24.9", "bl": "U28.5", "path": [[26.0, 17.0], [26.0, 16.5], [31.5, 16.5], [31.5, 14.0], [32.0, 14.0]]}, {"id": "W127", "net": "~DO5", "cls": "data", "type": "aislado", "a": [23, 16], "b": [35, 15], "al": "U24.7", "bl": "U28.9", "path": [[23.0, 16.0], [23.5, 16.0], [23.5, 17.5], [32.5, 17.5], [32.5, 15.0], [35.0, 15.0]]}, {"id": "W128", "net": "~DO6", "cls": "data", "type": "aislado", "a": [26, 15], "b": [35, 13], "al": "U24.11", "bl": "U28.11", "path": [[26.0, 15.0], [26.5, 15.0], [26.5, 12.5], [34.0, 12.5], [34.0, 13.0], [35.0, 13.0]]}, {"id": "W129", "net": "~DO7", "cls": "data", "type": "aislado", "a": [23, 14], "b": [35, 11], "al": "U24.5", "bl": "U28.13", "path": [[23.0, 14.0], [23.5, 14.0], [23.5, 10.5], [35.0, 10.5], [35.0, 11.0]]}, {"id": "W130", "net": "SW_D0", "cls": "dip", "type": "aislado", "a": [18, 6], "b": [14, 25], "al": "SW3.8", "bl": "U27.5", "path": [[18.0, 6.0], [18.0, 6.5], [13.5, 6.5], [13.5, 25.0], [14.0, 25.0]]}, {"id": "W131", "net": "SW_D1", "cls": "dip", "type": "aislado", "a": [17, 6], "b": [17, 26], "al": "SW3.7", "bl": "U27.11", "path": [[17.0, 6.0], [16.5, 6.0], [16.5, 26.0], [17.0, 26.0]]}, {"id": "W132", "net": "SW_D2", "cls": "dip", "type": "aislado", "a": [16, 6], "b": [14, 22], "al": "SW3.6", "bl": "U27.2", "path": [[16.0, 6.0], [15.5, 6.0], [15.5, 22.0], [14.0, 22.0]]}, {"id": "W133", "net": "SW_D3", "cls": "dip", "type": "aislado", "a": [15, 6], "b": [17, 23], "al": "SW3.5", "bl": "U27.14", "path": [[15.0, 6.0], [14.5, 6.0], [14.5, 23.0], [17.0, 23.0]]}, {"id": "W134", "net": "SW_D4", "cls": "dip", "type": "aislado", "a": [14, 6], "b": [14, 14], "al": "SW3.4", "bl": "U26.5", "path": [[14.0, 6.0], [14.0, 5.5], [12.5, 5.5], [12.5, 14.0], [14.0, 14.0]]}, {"id": "W135", "net": "SW_D5", "cls": "dip", "type": "aislado", "a": [13, 6], "b": [17, 15], "al": "SW3.3", "bl": "U26.11", "path": [[13.0, 6.0], [13.0, 7.5], [17.5, 7.5], [17.5, 15.0], [17.0, 15.0]]}, {"id": "W136", "net": "SW_D6", "cls": "dip", "type": "aislado", "a": [12, 6], "b": [14, 11], "al": "SW3.2", "bl": "U26.2", "path": [[12.0, 6.0], [11.5, 6.0], [11.5, 11.0], [14.0, 11.0]]}, {"id": "W137", "net": "SW_D7", "cls": "dip", "type": "aislado", "a": [11, 6], "b": [17, 12], "al": "SW3.1", "bl": "U26.14", "path": [[11.0, 6.0], [10.5, 6.0], [10.5, 11.5], [17.0, 11.5], [17.0, 12.0]]}, {"id": "W138", "net": "GND", "cls": "gnd", "type": "aislado", "a": [23, 17], "b": [23, 11], "al": "U24.8", "bl": "U24.2", "path": [[23.0, 17.0], [24.0, 17.0], [24.0, 11.0], [23.0, 11.0]]}, {"id": "W139", "net": "GND", "cls": "gnd", "type": "aislado", "a": [23, 18], "b": [23, 22], "al": "Riel GND", "bl": "U25.2", "path": [[23.0, 18.0], [23.0, 19.0], [22.5, 19.0], [22.5, 22.0], [23.0, 22.0]]}, {"id": "W140", "net": "GND", "cls": "gnd", "type": "aislado", "a": [32, 12], "b": [32, 10], "al": "U28.3", "bl": "U28.1", "path": [[32.0, 12.0], [32.5, 12.0], [32.5, 10.0], [32.0, 10.0]]}, {"id": "W141", "net": "GND", "cls": "gnd", "type": "aislado", "a": [32, 16], "b": [32, 12], "al": "U28.7", "bl": "U28.3", "path": [[32.0, 16.0], [30.5, 16.0], [30.5, 12.0], [32.0, 12.0]]}, {"id": "W142", "net": "GND", "cls": "gnd", "type": "aislado", "a": [32, 18], "b": [32, 21], "al": "Riel GND", "bl": "U29.1", "path": [[32.0, 18.0], [32.0, 19.0], [32.5, 19.0], [32.5, 21.0], [32.0, 21.0]]}, {"id": "W143", "net": "GND", "cls": "gnd", "type": "aislado", "a": [32, 21], "b": [32, 23], "al": "U29.1", "bl": "U29.3", "path": [[32.0, 21.0], [31.5, 21.0], [31.5, 23.0], [32.0, 23.0]]}, {"id": "W144", "net": "GND", "cls": "gnd", "type": "aislado", "a": [45, 25], "b": [45, 23], "al": "U31.10", "bl": "U31.12", "path": [[45.0, 25.0], [45.5, 25.0], [45.5, 23.0], [45.0, 23.0]]}]}};
+const COLORS = {"gnd": "#222222", "vcc": "#e01e1e", "bus": "#1e6fff", "addr": "#f0be00", "dip": "#e8e8e8", "led": "#a06a38", "ctrl": "#ff7b00", "data": "#19b34a"};
+const P = 2.54, T = 1.6;
+const isMobile = window.matchMedia('(max-width: 780px)').matches || window.matchMedia('(pointer: coarse)').matches;
+
+function loadScript(src) {
+  return new Promise((res, rej) => {
+    const s = document.createElement('script');
+    s.src = src; s.async = false;
+    s.onload = res; s.onerror = rej;
+    document.head.appendChild(s);
+  });
+}
+
+async function loadThree() {
+  const cdns = [
+    ['https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js',
+     'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js'],
+    ['https://unpkg.com/three@0.128.0/build/three.min.js',
+     'https://unpkg.com/three@0.128.0/examples/js/controls/OrbitControls.js']
+  ];
+  for (const [u1, u2] of cdns) {
+    try {
+      await loadScript(u1);
+      await loadScript(u2);
+      if (window.THREE && THREE.OrbitControls) return true;
+    } catch (_) {}
+  }
+  return false;
+}
+
+function showError(title, msg) {
+  const ov = document.getElementById('statusOverlay');
+  ov.classList.remove('hidden');
+  document.getElementById('statusCard').innerHTML =
+    `<h2 style="color:#ff7b7b;margin-bottom:10px">${title}</h2><p>${msg}</p>`;
+}
+
+// UI movil (colapsar paneles por defecto en telefono para dejar 90% de pantalla al 3D)
+if (isMobile) {
+  document.getElementById('legend').classList.add('hidden');
+} else {
+  document.getElementById('infoBody').innerHTML =
+    'Órbita: arrastra para rotar · rueda para zoom · clic der. para mover.<br>' +
+    'Pulsa <b>C</b> para <b>Cámara Libre (WASD/↑↓←→ + E/Q)</b> · <b>R</b> para reiniciar vista.<br>' +
+    '<b>Haz clic sobre cualquier componente</b> para ver su referencia y coordenadas (C, F).';
+}
+document.getElementById('infoClose').onclick = () => document.getElementById('info').classList.add('hidden');
+document.getElementById('btnMenu').onclick = function() {
+  const d = document.getElementById('drawer');
+  const open = d.classList.toggle('open');
+  this.classList.toggle('active', open);
+};
+document.getElementById('btnLegend').onclick = function() {
+  const l = document.getElementById('legend');
+  const vis = !l.classList.toggle('hidden');
+  this.classList.toggle('active', vis);
+};
+
+loadThree().then(ok => {
+  if (!ok) {
+    showError('No se pudo cargar el motor 3D',
+      'Si abriste este archivo desde el visor rápido de WhatsApp o del gestor de archivos del teléfono, <b>ábrelo con Google Chrome o Safari</b> (con conexión a Internet).<br><br>' +
+      'Para verlo sin conexión en PC o móvil, usa los modelos <b>.obj</b> incluidos en esta carpeta.');
+    return;
+  }
+
+  let renderer;
+  try {
+    renderer = new THREE.WebGLRenderer({ antialias: !isMobile, powerPreference: 'high-performance' });
+  } catch (e) {
+    showError('WebGL no disponible',
+      'El visor interno de tu teléfono bloqueó WebGL. Abre <b>Visor3D_MAR_RAM.html</b> directamente en <b>Chrome</b> o <b>Firefox</b>.');
+    return;
+  }
+
+  document.getElementById('statusOverlay').classList.add('hidden');
+
+  const stage = document.getElementById('stage');
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x10141c);
+
+  const initW = Math.max(1, stage.clientWidth);
+  const initH = Math.max(1, stage.clientHeight);
+  // Plano near reducido (0.2 mm) para inspeccion milimetrica de pines y cables sin recortes
+  const camera = new THREE.PerspectiveCamera(42, initW / initH, 0.2, 900);
+
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, isMobile ? 1.5 : 2));
+  renderer.setSize(initW, initH, false);
+  renderer.shadowMap.enabled = !isMobile;
+  if (!isMobile) renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.domElement.style.touchAction = 'none';
+  stage.appendChild(renderer.domElement);
+
+  const controls = new THREE.OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.09;
+  controls.screenSpacePanning = true;
+  controls.maxDistance = 650;
+  controls.minDistance = 4;
+  controls.touches = { ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN };
+
+  // Iluminacion limpia de 3 puntos + hemisferio (funciona perfecto arriba y en cara de soldadura sin sombras pesadas)
+  scene.add(new THREE.HemisphereLight(0xf6f9ff, 0x3b4860, isMobile ? 0.95 : 0.65));
+  const dir1 = new THREE.DirectionalLight(0xfff8ee, isMobile ? 0.85 : 0.95);
+  dir1.position.set(120, 180, 110);
+  if (!isMobile) {
+    dir1.castShadow = true;
+    dir1.shadow.mapSize.set(1024, 1024);
+    dir1.shadow.camera.left = -160; dir1.shadow.camera.right = 160;
+    dir1.shadow.camera.top = 160; dir1.shadow.camera.bottom = -160;
+  }
+  scene.add(dir1);
+  const dir2 = new THREE.DirectionalLight(0x9fc2ff, 0.72);
+  dir2.position.set(-100, -150, -80);
+  scene.add(dir2);
+
+  const gridHelper = new THREE.GridHelper(320, 32, 0x263145, 0x1a2230);
+  gridHelper.position.y = -18;
+  scene.add(gridHelper);
+
+  const matCache = {};
+  function mat(key, opts) {
+    if (!matCache[key]) matCache[key] = new THREE.MeshStandardMaterial(opts);
+    return matCache[key];
+  }
+  const M_BAK = new THREE.MeshStandardMaterial({ color: 0xb06c2b, roughness: 0.72, metalness: 0.05 });
+  const M_FR4 = new THREE.MeshStandardMaterial({ color: 0x167842, roughness: 0.52, metalness: 0.08 });
+  const M_COP = mat('cop', { color: 0xd48b42, roughness: 0.35, metalness: 0.72 });
+  const M_TIN = mat('tin', { color: 0xd6dce2, roughness: 0.28, metalness: 0.85 });
+  const M_SOL = mat('sol', { color: 0xd5dade, roughness: 0.28, metalness: 0.82 });
+  const M_SOC = mat('soc', { color: 0x23252a, roughness: 0.65 });
+  const M_IC  = mat('ic',  { color: 0x141518, roughness: 0.55 });
+  const M_PIN = mat('pin', { color: 0xd0d4da, roughness: 0.25, metalness: 0.88 });
+  const M_GLD = mat('gld', { color: 0xe2b73b, roughness: 0.25, metalness: 0.88 });
+  const M_RES = mat('res', { color: 0xdcc491, roughness: 0.6 });
+  const M_RBLU = mat('rblu', { color: 0x289ec7, roughness: 0.48 });
+  const M_CER = mat('cer', { color: 0xe0852d, roughness: 0.45 });
+  const M_ELC = mat('elc', { color: 0x1a3b82, roughness: 0.35, metalness: 0.2 });
+  const M_DIP = mat('dip', { color: 0xc62222, roughness: 0.45 });
+  const M_DPB = mat('dpb', { color: 0x1d1f24, roughness: 0.55 });
+  const M_MET = mat('met', { color: 0xb8bec6, roughness: 0.32, metalness: 0.82 });
+  const M_WHT = mat('wht', { color: 0xf4f4f4, roughness: 0.5 });
+  const M_SIP = mat('sip', { color: 0xe6b528, roughness: 0.4 });
+  const M_BTN = mat('btn', { color: 0x35383f, roughness: 0.55 });
+  const M_HDR = mat('hdr', { color: 0x181a1e, roughness: 0.6 });
+
+  const RAD_SEGS = isMobile ? 4 : 6;
+  const CYL_SEGS = isMobile ? 10 : 16;
+
+  function icLabelTexture(ref, val, rot) {
+    const cv = document.createElement('canvas'); cv.width = 256; cv.height = 96;
+    const g = cv.getContext('2d');
+    g.fillStyle = '#15171b'; g.fillRect(0, 0, 256, 96);
+    g.fillStyle = '#363d4a'; g.beginPath(); g.arc(10, 48, 18, -Math.PI / 2, Math.PI / 2); g.fill();
+    g.fillStyle = '#7e8a9e'; g.beginPath(); g.arc(28, 78, 6, 0, Math.PI * 2); g.fill();
+    g.fillStyle = '#d5deec'; g.font = 'bold 26px monospace'; g.textAlign = 'center';
+    g.fillText(ref + ' ' + val, 138, 56);
+    const tx = new THREE.CanvasTexture(cv);
+    tx.center.set(0.5, 0.5);
+    tx.rotation = (rot === 180) ? Math.PI / 2 : -Math.PI / 2;
+    return tx;
+  }
+
+  function makeTube(pts, r, material) {
+    const curve = new THREE.CatmullRomCurve3(pts);
+    const segs = Math.max(4, pts.length * (isMobile ? 2 : 3));
+    return new THREE.Mesh(new THREE.TubeGeometry(curve, segs, r, RAD_SEGS, false), material);
+  }
+
+  function makeOrthoTube(pts, r, material) {
+    const path = new THREE.CurvePath();
+    const smooth = [pts[0]];
+    for (let i = 1; i < pts.length - 1; i++) {
+      const p0 = pts[i - 1], p1 = pts[i], p2 = pts[i + 1];
+      const d1 = p0.distanceTo(p1), d2 = p1.distanceTo(p2);
+      const ch = Math.min(0.55, d1 * 0.35, d2 * 0.35);
+      if (ch > 0.05) {
+        smooth.push(p1.clone().lerp(p0, ch / d1));
+        smooth.push(p1.clone().lerp(p2, ch / d2));
+      } else {
+        smooth.push(p1);
+      }
+    }
+    smooth.push(pts[pts.length - 1]);
+    for (let i = 0; i < smooth.length - 1; i++) {
+      if (smooth[i].distanceTo(smooth[i + 1]) > 0.02) {
+        path.add(new THREE.LineCurve3(smooth[i], smooth[i + 1]));
+      }
+    }
+    const tSegs = Math.max(6, smooth.length * (isMobile ? 2 : 3));
+    return new THREE.Mesh(new THREE.TubeGeometry(path, tSegs, r, RAD_SEGS, false), material);
+  }
+
+  let pickables = [];
+  const root = new THREE.Group();
+  scene.add(root);
+  let layers = { comp: [], solder: [], wire: [], wireItems: [] };
+  let lastCamPreset = 'iso';
+
+  function buildBoard3D(bd, ox, oz) {
+    const gBoard = new THREE.Group();
+    const gComp = new THREE.Group();
+    const gSolder = new THREE.Group();
+    const gWire = new THREE.Group();
+    gBoard.add(gComp, gSolder, gWire);
+    layers.comp.push(gComp); layers.solder.push(gSolder); layers.wire.push(gWire);
+
+    const pos = (c, r) => [ox + bd.mx + (c - 1) * P, oz + bd.my + (r - 1) * P];
+    const isFr4 = bd.board_style === 'fr4_green';
+
+    // Sustrato (FR-4 verde doble cara PY-7*9 CM para MAR, baquelita para RAM)
+    const slab = new THREE.Mesh(new THREE.BoxGeometry(bd.w, T, bd.h), isFr4 ? M_FR4 : M_BAK);
+    slab.position.set(ox + bd.w / 2, T / 2, oz + bd.h / 2);
+    if (!isMobile) { slab.receiveShadow = true; slab.castShadow = true; }
+    gBoard.add(slab);
+
+    // Pads instanciados (offset limpio -0.10 mm / T+0.08 mm para cero z-fighting en moviles)
+    const padGeo = new THREE.CylinderGeometry(0.84, 0.84, 0.14, isMobile ? 8 : 10);
+    const padMat = isFr4 ? M_TIN : M_COP;
+    const dummy = new THREE.Object3D();
+    const padInstBot = new THREE.InstancedMesh(padGeo, padMat, bd.cols * bd.rows);
+    let idx = 0;
+    for (let c = 1; c <= bd.cols; c++) {
+      for (let r = 1; r <= bd.rows; r++) {
+        const [px, pz] = pos(c, r);
+        dummy.position.set(px, -0.10, pz);
+        dummy.updateMatrix();
+        padInstBot.setMatrixAt(idx++, dummy.matrix);
+      }
+    }
+    gBoard.add(padInstBot);
+
+    if (isFr4) {
+      // Pads superiores + dedos rectangulares de borde (C=0 y C=cols+1) en ambas caras
+      const padInstTop = new THREE.InstancedMesh(padGeo, M_TIN, bd.cols * bd.rows);
+      idx = 0;
+      for (let c = 1; c <= bd.cols; c++) {
+        for (let r = 1; r <= bd.rows; r++) {
+          const [px, pz] = pos(c, r);
+          dummy.position.set(px, T + 0.08, pz);
+          dummy.updateMatrix();
+          padInstTop.setMatrixAt(idx++, dummy.matrix);
+        }
+      }
+      gBoard.add(padInstTop);
+
+      const fingerGeo = new THREE.BoxGeometry(3.2, 0.14, 1.55);
+      const fingerInst = new THREE.InstancedMesh(fingerGeo, M_TIN, bd.rows * 4);
+      let fi = 0;
+      for (const ec of [0, bd.cols + 1]) {
+        for (let r = 1; r <= bd.rows; r++) {
+          const [px, pz] = pos(ec, r);
+          for (const fy of [-0.10, T + 0.08]) {
+            dummy.position.set(px, fy, pz);
+            dummy.updateMatrix();
+            fingerInst.setMatrixAt(fi++, dummy.matrix);
+          }
+        }
+      }
+      gBoard.add(fingerInst);
+    }
+
+    // Instanciar todos los pines metalicos (reduce ~250 draw calls a solo 2 en moviles!)
+    const metalPins = [], goldPins = [];
+    for (const c of bd.comps) {
+      if (c.kind === 'EDGE14') continue;
+      const target = c.kind.startsWith('HDR') ? goldPins : metalPins;
+      for (const p of c.pads) target.push(pos(p.c, p.r));
+    }
+    const pinGeo = new THREE.BoxGeometry(0.45, T + 2.4, 0.45);
+    for (const [arr, mPin] of [[metalPins, M_PIN], [goldPins, M_GLD]]) {
+      if (!arr.length) continue;
+      const pInst = new THREE.InstancedMesh(pinGeo, mPin, arr.length);
+      arr.forEach(([px, pz], i) => {
+        dummy.position.set(px, T / 2 + 0.2, pz);
+        dummy.updateMatrix();
+        pInst.setMatrixAt(i, dummy.matrix);
+      });
+      gComp.add(pInst);
+    }
+
+    // Cuerpos de componentes
+    for (const c of bd.comps) {
+      const grp = new THREE.Group();
+      const pts = c.pads.map(p => pos(p.c, p.r));
+      const xs = pts.map(p => p[0]), zs = pts.map(p => p[1]);
+      const cx = (Math.min(...xs) + Math.max(...xs)) / 2;
+      const cz = (Math.min(...zs) + Math.max(...zs)) / 2;
+      const k = c.kind;
+
+      if (k.startsWith('DIP')) {
+        const n = parseInt(k.slice(3), 10);
+        const len = (n / 2 - 1) * P + 2.8;
+        const soc = new THREE.Mesh(new THREE.BoxGeometry(9.6, 3.0, len), M_SOC);
+        soc.position.set(cx, T + 1.5, cz); grp.add(soc);
+        const topMat = new THREE.MeshStandardMaterial({ map: icLabelTexture(c.ref, c.value, c.rot), roughness: 0.5 });
+        const ic = new THREE.Mesh(new THREE.BoxGeometry(6.6, 3.4, len - 0.6), [M_IC, M_IC, topMat, M_IC, M_IC, M_IC]);
+        ic.position.set(cx, T + 4.7, cz); grp.add(ic);
+      } else if (k === 'LED5') {
+        const col = new THREE.Color(c.color || '#ff2b2b');
+        const lm = mat('led_' + (c.color || 'r'), { color: col, emissive: col, emissiveIntensity: 0.34, roughness: 0.22, transparent: true, opacity: 0.92 });
+        const rim = new THREE.Mesh(new THREE.CylinderGeometry(2.85, 2.85, 1.0, CYL_SEGS), lm);
+        rim.position.set(cx, T + 2.2, cz); grp.add(rim);
+        const body = new THREE.Mesh(new THREE.CylinderGeometry(2.5, 2.5, 4.6, CYL_SEGS), lm);
+        body.position.set(cx, T + 5.0, cz); grp.add(body);
+        const dome = new THREE.Mesh(new THREE.SphereGeometry(2.5, CYL_SEGS, 8, 0, Math.PI * 2, 0, Math.PI / 2), lm);
+        dome.position.set(cx, T + 7.3, cz); grp.add(dome);
+      } else if (k === 'R762') {
+        const vert = (Math.max(...zs) - Math.min(...zs)) > (Math.max(...xs) - Math.min(...xs));
+        const body = new THREE.Mesh(new THREE.CylinderGeometry(1.15, 1.15, 6.0, 10), isFr4 ? M_RBLU : M_RES);
+        body.rotation.x = vert ? Math.PI / 2 : 0;
+        body.rotation.z = vert ? 0 : Math.PI / 2;
+        body.position.set(cx, T + 1.6, cz); grp.add(body);
+        const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 7.62, 6), M_PIN);
+        bar.rotation.x = body.rotation.x; bar.rotation.z = body.rotation.z;
+        bar.position.set(cx, T + 1.6, cz); grp.add(bar);
+      } else if (k === 'C254' || k === 'C508') {
+        const vert = (Math.max(...zs) - Math.min(...zs)) > (Math.max(...xs) - Math.min(...xs));
+        const rad = k === 'C254' ? 1.7 : 2.3;
+        const disc = new THREE.Mesh(new THREE.CylinderGeometry(rad, rad, 1.7, 12), M_CER);
+        disc.rotation.z = vert ? Math.PI / 2 : 0;
+        disc.rotation.x = vert ? 0 : Math.PI / 2;
+        disc.position.set(cx, T + 1.2 + rad, cz); grp.add(disc);
+      } else if (k === 'CP5') {
+        const cyl = new THREE.Mesh(new THREE.CylinderGeometry(2.5, 2.5, 10.2, CYL_SEGS), M_ELC);
+        cyl.position.set(cx, T + 5.3, cz); grp.add(cyl);
+        const top = new THREE.Mesh(new THREE.CylinderGeometry(2.2, 2.2, 0.3, CYL_SEGS), M_PIN);
+        top.position.set(cx, T + 10.5, cz); grp.add(top);
+      } else if (k.startsWith('SWDIP')) {
+        const n = parseInt(k.slice(5), 10);
+        const isPiano = (c.value || '').indexOf('KSPA') !== -1;
+        const body = new THREE.Mesh(new THREE.BoxGeometry(n * P + 1.8, isPiano ? 6.2 : 5.8, 9.4), isPiano ? M_DPB : M_DIP);
+        body.position.set(cx, T + (isPiano ? 3.1 : 2.9), cz); grp.add(body);
+        for (let i = 0; i < n; i++) {
+          if (isPiano) {
+            const lv = new THREE.Mesh(new THREE.BoxGeometry(1.25, 1.4, 2.8), M_WHT);
+            lv.position.set(pts[i][0], T + 3.4, cz + 5.1); grp.add(lv);
+          } else {
+            const sl = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.5, 2.2), M_WHT);
+            sl.position.set(pts[i][0], T + 6.5, cz - 0.6); grp.add(sl);
+          }
+        }
+      } else if (k.startsWith('SIP')) {
+        const len = (Math.max(...xs) - Math.min(...xs)) + 2.0;
+        const body = new THREE.Mesh(new THREE.BoxGeometry(len, 4.6, 2.1), M_SIP);
+        body.position.set(cx, T + 2.8, cz); grp.add(body);
+      } else if (k === 'PUSH6') {
+        const b1 = new THREE.Mesh(new THREE.BoxGeometry(6.0, 3.6, 6.0), M_BTN);
+        b1.position.set(cx, T + 1.8, cz); grp.add(b1);
+        const cap = new THREE.Mesh(new THREE.CylinderGeometry(1.75, 1.75, 1.8, 12), M_IC);
+        cap.position.set(cx, T + 4.4, cz); grp.add(cap);
+      } else if (k === 'SPDT3') {
+        const b1 = new THREE.Mesh(new THREE.BoxGeometry(4.4, 4.2, 8.6), M_MET);
+        b1.position.set(cx, T + 2.1, cz); grp.add(b1);
+        const slot = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.5, 5.2), M_SOC);
+        slot.position.set(cx, T + 4.25, cz); grp.add(slot);
+        const knob = new THREE.Mesh(new THREE.BoxGeometry(2.4, 3.6, 2.4), M_IC);
+        knob.position.set(cx, T + 6.0, cz - 1.4); grp.add(knob);
+      } else if (k === 'EDGE14') {
+        pts.forEach(([px, pz]) => {
+          const tPad = new THREE.Mesh(new THREE.BoxGeometry(3.5, 0.24, 1.72), M_GLD);
+          tPad.position.set(px, T + 0.14, pz); grp.add(tPad);
+          const bPad = new THREE.Mesh(new THREE.BoxGeometry(3.5, 0.24, 1.72), M_GLD);
+          bPad.position.set(px, -0.18, pz); grp.add(bPad);
+        });
+      } else if (k === 'LOCK6') {
+        const b1 = new THREE.Mesh(new THREE.BoxGeometry(8.0, 7.5, 8.0), M_BTN);
+        b1.position.set(cx, T + 3.75, cz); grp.add(b1);
+        const cap = new THREE.Mesh(new THREE.BoxGeometry(4.8, 3.6, 4.8), M_DIP);
+        cap.position.set(cx, T + 9.2, cz); grp.add(cap);
+      } else if (k.startsWith('HDR')) {
+        const horiz = c.rot === 90 || c.rot === 270;
+        const sx = horiz ? (Math.max(...xs) - Math.min(...xs)) + 2.5 : 2.5;
+        const sz = horiz ? 2.5 : (Math.max(...zs) - Math.min(...zs)) + 2.5;
+        const base = new THREE.Mesh(new THREE.BoxGeometry(sx, 2.5, sz), M_HDR);
+        base.position.set(cx, T + 1.25, cz); grp.add(base);
+        pts.forEach(([px, pz], i) => {
+          if (c.labels && c.labels[i] === 'LLAVE') return;
+          const pin = new THREE.Mesh(new THREE.BoxGeometry(0.62, 6.2, 0.62), M_GLD);
+          pin.position.set(px, T + 5.5, pz); grp.add(pin);
+        });
+      }
+
+      grp.traverse(obj => {
+        if (obj.isMesh) {
+          if (!isMobile) obj.castShadow = true;
+          obj.userData = { board: bd.name, comp: c };
+          pickables.push(obj);
+        }
+      });
+      gComp.add(grp);
+    }
+
+    // Rieles de cobre/estano (cara inferior)
+    for (const rl of bd.rails) {
+      for (const [a, b] of rl.segs) {
+        const [x1, z1] = pos(a[0], a[1]), [x2, z2] = pos(b[0], b[1]);
+        gSolder.add(makeTube([new THREE.Vector3(x1, -0.55, z1), new THREE.Vector3(x2, -0.55, z2)], 0.55, M_SOL));
+      }
+    }
+
+    // Puentes y cables (ortogonales Manhattan estratificados en Z)
+    const Z_LAY = { gnd: -1.10, vcc: -1.10, led: -1.35, dip: -1.60, data: -1.85, ctrl: -2.15, addr: -2.45, bus: -2.80 };
+    bd.wires.forEach((w, i) => {
+      const [x1, z1] = pos(w.a[0], w.a[1]), [x2, z2] = pos(w.b[0], w.b[1]);
+      if (w.type === 'puente' || w.type === 'bridge') {
+        gSolder.add(makeTube([new THREE.Vector3(x1, -0.45, z1), new THREE.Vector3(x2, -0.45, z2)], 0.55, M_SOL));
+      } else if (w.type === 'desnudo') {
+        gSolder.add(makeTube([new THREE.Vector3(x1, -0.60, z1), new THREE.Vector3(x2, -0.60, z2)], 0.36, M_SOL));
+      } else if (w.type === 'potencia') {
+        const wm = mat('w_' + w.cls, { color: COLORS[w.cls], roughness: 0.45 });
+        const m = makeOrthoTube([
+          new THREE.Vector3(x1, T, z1), new THREE.Vector3(x1, T + 1.2, z1),
+          new THREE.Vector3(x2, T + 1.2, z2), new THREE.Vector3(x2, T, z2)
+        ], 0.42, wm);
+        gWire.add(m);
+        layers.wireItems.push({ mesh: m, cls: w.cls });
+      } else {
+        const wm = mat('w_' + w.cls, { color: COLORS[w.cls], roughness: 0.45 });
+        const yRun = (Z_LAY[w.cls] || -2.0) - (i % 3) * 0.12;
+        const rpts = w.path.map(pt => pos(pt[0], pt[1]));
+        const v3 = [new THREE.Vector3(rpts[0][0], -0.35, rpts[0][1])];
+        for (const [rx, rz] of rpts) v3.push(new THREE.Vector3(rx, yRun, rz));
+        v3.push(new THREE.Vector3(rpts[rpts.length - 1][0], -0.35, rpts[rpts.length - 1][1]));
+        const m = makeOrthoTube(v3, 0.27, wm);
+        gWire.add(m);
+        layers.wireItems.push({ mesh: m, cls: w.cls });
+      }
+    });
+
+    return gBoard;
+  }
+
+  let currentMode = 'BOTH';
+  function rebuild(mode) {
+    currentMode = mode;
+    while (root.children.length) root.remove(root.children[0]);
+    pickables = [];
+    layers = { comp: [], solder: [], wire: [], wireItems: [] };
+
+    if (mode === 'MAR') {
+      root.add(buildBoard3D(DATA.MAR, -DATA.MAR.w / 2, -DATA.MAR.h / 2));
+    } else if (mode === 'RAM') {
+      root.add(buildBoard3D(DATA.RAM, -DATA.RAM.w / 2, -DATA.RAM.h / 2));
+    } else {
+      const ramOx = -DATA.RAM.w / 2, ramOz = 7;
+      const marOx = -DATA.MAR.w / 2, marOz = -DATA.MAR.h - 7;
+      root.add(buildBoard3D(DATA.MAR, marOx, marOz));
+      root.add(buildBoard3D(DATA.RAM, ramOx, ramOz));
+      const marExt = DATA.MAR.comps.find(c => c.ref === 'P_EXT').pads;
+      const ramJ1 = DATA.RAM.comps.find(c => c.ref === 'J1').pads;
+      // Mapeo MAR P_EXT (0:GND, 13:PROG, 9:A3, 10:A2, 11:A1, 12:A0) -> RAM J1 (0..5)
+      const links = [
+        [0, 0, '#222222'], [13, 1, '#ff7b00'],
+        [9, 2, '#f0be00'], [10, 3, '#f0be00'], [11, 4, '#f0be00'], [12, 5, '#f0be00']
+      ];
+      const gRib = new THREE.Group();
+      links.forEach(([im, ir, col], k) => {
+        const x1 = marOx + DATA.MAR.mx + (marExt[im].c - 1) * P;
+        const z1 = marOz + DATA.MAR.my + (marExt[im].r - 1) * P;
+        const x2 = ramOx + DATA.RAM.mx + (ramJ1[ir].c - 1) * P;
+        const z2 = ramOz + DATA.RAM.my + (ramJ1[ir].r - 1) * P;
+        const outX = ramOx - 4.5 - k * 1.15;
+        const gapZ = -2.5 + k * 0.85;
+        const m = mat('rib_' + k, { color: col, roughness: 0.45 });
+        gRib.add(makeTube([
+          new THREE.Vector3(x1, 0.3, z1),
+          new THREE.Vector3(marOx - 4.0 - k * 1.0, 3.2, z1),
+          new THREE.Vector3(outX, 6.8, gapZ),
+          new THREE.Vector3(outX, 9.5, z2),
+          new THREE.Vector3(x2, 9.5, z2),
+        ], 0.40, m));
+      });
+      root.add(gRib);
+      layers.wire.push(gRib);
+    }
+    applyToggles();
+    setCam('iso');
+  }
+
+  function applyToggles() {
+    const vC = document.getElementById('tComp').checked;
+    const vS = document.getElementById('tSolder').checked;
+    const vW = document.getElementById('tWires').checked;
+    const xr = document.getElementById('tXray').checked;
+    const bf = document.getElementById('busFilter').value;
+    layers.comp.forEach(g => g.visible = vC);
+    layers.solder.forEach(g => g.visible = vS);
+    layers.wire.forEach(g => g.visible = vW);
+    layers.wireItems.forEach(it => it.mesh.visible = vW && (bf === 'ALL' || it.cls === bf));
+    [M_BAK, M_FR4].forEach(m => { m.transparent = xr; m.opacity = xr ? 0.32 : 1.0; m.needsUpdate = true; });
+  }
+
+  // ---- Modo de Camara: Orbita vs Camara Libre (Free-Fly) ----
+  let navMode = 'orbit';
+  let freeYaw = 0, freePitch = 0, freeSpeed = 55;
+  const keys = Object.create(null);
+  let isLooking = false, lookPtrId = null, lookLastX = 0, lookLastY = 0;
+  const _fwd = new THREE.Vector3(), _right = new THREE.Vector3();
+  const _worldUp = new THREE.Vector3(0, 1, 0), _move = new THREE.Vector3();
+  const _euler = new THREE.Euler(0, 0, 0, 'YXZ');
+
+  const freeHud = document.getElementById('freeHud');
+  const speedSlider = document.getElementById('freeSpeed');
+  const speedVal = document.getElementById('freeSpeedVal');
+
+  function setFreeSpeed(v) {
+    freeSpeed = Math.round(Math.max(4, Math.min(240, v)));
+    speedSlider.value = String(freeSpeed);
+    speedVal.textContent = freeSpeed + ' mm/s';
+  }
+  speedSlider.oninput = () => setFreeSpeed(parseFloat(speedSlider.value));
+  speedSlider.onchange = () => speedSlider.blur();
+
+  function syncFreeAnglesFromCamera() {
+    _euler.setFromQuaternion(camera.quaternion, 'YXZ');
+    freeYaw = _euler.y;
+    freePitch = Math.max(-1.55, Math.min(1.55, _euler.x));
+  }
+  function applyFreeAngles() {
+    _euler.set(freePitch, freeYaw, 0, 'YXZ');
+    camera.quaternion.setFromEuler(_euler);
+  }
+  function clearKeys() { for (const k in keys) delete keys[k]; }
+
+  function setNavMode(mode) {
+    if (mode === navMode) return;
+    navMode = mode;
+    clearKeys();
+    isLooking = false; lookPtrId = null;
+    document.querySelectorAll('#navModeGrp button[data-nav]').forEach(b => {
+      b.classList.toggle('active', b.dataset.nav === mode);
+    });
+    freeHud.classList.toggle('hidden', mode !== 'free');
+    renderer.domElement.style.cursor = mode === 'free' ? 'grab' : '';
+    if (mode === 'free') {
+      controls.enabled = false;
+      syncFreeAnglesFromCamera();
+    } else {
+      camera.getWorldDirection(_fwd);
+      let dist = 70;
+      if (Math.abs(_fwd.y) > 0.05) {
+        const t = -camera.position.y / _fwd.y;
+        if (t > 8 && t < 240) dist = t;
+      }
+      controls.target.copy(camera.position).addScaledVector(_fwd, dist);
+      controls.enabled = true;
+      controls.update();
+    }
+  }
+
+  function setCam(preset) {
+    lastCamPreset = preset;
+    const aspect = Math.max(0.42, stage.clientWidth / Math.max(1, stage.clientHeight));
+    // Compensacion automatica de encuadre para telefonos en vertical (aspect < 1)
+    const portraitBoost = aspect < 1 ? (1.0 / aspect) * 0.78 : 1.0;
+    const baseDist = currentMode === 'MAR' ? 125 : (currentMode === 'RAM' ? 185 : 225);
+    const dist = baseDist * Math.max(1.0, portraitBoost);
+    controls.target.set(0, 0, currentMode === 'BOTH' ? 8 : 0);
+    if (preset === 'iso') camera.position.set(dist * 0.40, dist * 0.74, dist * 0.72);
+    if (preset === 'top') camera.position.set(0, dist * 1.05, 0.01);
+    if (preset === 'bot') camera.position.set(0, -dist * 1.05, 0.01);
+    if (preset === 'side') camera.position.set(dist * 0.95, dist * 0.25, 0);
+    if (navMode === 'free') {
+      camera.lookAt(controls.target);
+      syncFreeAnglesFromCamera();
+    } else {
+      controls.update();
+    }
+  }
+
+  document.querySelectorAll('#modeGrp button').forEach(btn => btn.onclick = () => {
+    document.querySelectorAll('#modeGrp button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    btn.blur();
+    rebuild(btn.dataset.mode);
+  });
+  document.querySelectorAll('#navModeGrp button[data-nav]').forEach(btn => btn.onclick = () => {
+    btn.blur();
+    setNavMode(btn.dataset.nav);
+  });
+  document.getElementById('btnResetCam').onclick = function() { this.blur(); setCam('iso'); };
+  document.getElementById('btnHudReset').onclick = function() { this.blur(); setCam('iso'); };
+  document.querySelectorAll('[data-cam]').forEach(btn => btn.onclick = () => { btn.blur(); setCam(btn.dataset.cam); });
+  ['tComp', 'tSolder', 'tWires', 'tXray', 'busFilter'].forEach(id => {
+    const el = document.getElementById(id);
+    el.onchange = () => { applyToggles(); el.blur(); };
+  });
+
+  // Atajos de teclado globales (C = alternar modo, R = reset, WASD/Flechas/E/Q/Espacio/Shift = mover)
+  const FREE_KEYS = new Set([
+    'KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyE', 'KeyQ',
+    'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight',
+    'Space', 'ShiftLeft', 'ShiftRight'
+  ]);
+  window.addEventListener('keydown', ev => {
+    if (ev.ctrlKey || ev.metaKey || ev.altKey) return;
+    if (ev.code === 'KeyC' && !ev.repeat) {
+      ev.preventDefault();
+      setNavMode(navMode === 'orbit' ? 'free' : 'orbit');
+      return;
+    }
+    if (ev.code === 'KeyR' && !ev.repeat) {
+      ev.preventDefault();
+      setCam('iso');
+      return;
+    }
+    if (navMode === 'free' && FREE_KEYS.has(ev.code)) {
+      ev.preventDefault();
+      keys[ev.code] = true;
+    }
+  });
+  window.addEventListener('keyup', ev => {
+    if (FREE_KEYS.has(ev.code)) delete keys[ev.code];
+  });
+  window.addEventListener('blur', clearKeys);
+
+  // Rueda del raton en Modo Libre ajusta velocidad de desplazamiento
+  renderer.domElement.addEventListener('wheel', ev => {
+    if (navMode !== 'free') return;
+    ev.preventDefault();
+    setFreeSpeed(freeSpeed * (ev.deltaY < 0 ? 1.18 : 1 / 1.18));
+  }, { passive: false });
+  renderer.domElement.addEventListener('contextmenu', ev => ev.preventDefault());
+
+  // Deteccion de toque/clic vs arrastre (y rotacion 360° en Modo Camara Libre)
+  const ray = new THREE.Raycaster(), mouse = new THREE.Vector2();
+  let downPos = null, activePointers = 0;
+  renderer.domElement.addEventListener('pointerdown', ev => {
+    activePointers++;
+    downPos = activePointers === 1 ? { x: ev.clientX, y: ev.clientY, t: Date.now(), btn: ev.button } : null;
+    if (navMode === 'free' && activePointers === 1 && (ev.button === 0 || ev.button === 2 || ev.pointerType === 'touch')) {
+      isLooking = true;
+      lookPtrId = ev.pointerId;
+      lookLastX = ev.clientX;
+      lookLastY = ev.clientY;
+      renderer.domElement.style.cursor = 'grabbing';
+      try { renderer.domElement.setPointerCapture(ev.pointerId); } catch (_) {}
+    }
+  });
+  renderer.domElement.addEventListener('pointermove', ev => {
+    if (!isLooking || navMode !== 'free' || ev.pointerId !== lookPtrId) return;
+    const dx = ev.clientX - lookLastX;
+    const dy = ev.clientY - lookLastY;
+    lookLastX = ev.clientX;
+    lookLastY = ev.clientY;
+    freeYaw -= dx * 0.0042;
+    freePitch = Math.max(-1.55, Math.min(1.55, freePitch - dy * 0.0042));
+    applyFreeAngles();
+  });
+  function stopLook(ev) {
+    if (isLooking && (!ev || ev.pointerId === lookPtrId)) {
+      isLooking = false;
+      try { if (lookPtrId !== null) renderer.domElement.releasePointerCapture(lookPtrId); } catch (_) {}
+      lookPtrId = null;
+      if (navMode === 'free') renderer.domElement.style.cursor = 'grab';
+    }
+  }
+  renderer.domElement.addEventListener('pointercancel', ev => { activePointers = 0; downPos = null; stopLook(ev); });
+  renderer.domElement.addEventListener('pointerup', ev => {
+    activePointers = Math.max(0, activePointers - 1);
+    stopLook(ev);
+    if (!downPos || activePointers > 0) return;
+    const moved = Math.hypot(ev.clientX - downPos.x, ev.clientY - downPos.y);
+    const dt = Date.now() - downPos.t;
+    const btn = downPos.btn;
+    downPos = null;
+    if (btn === 2 || moved > 8 || dt > 450) return;
+    const rect = renderer.domElement.getBoundingClientRect();
+    mouse.x = ((ev.clientX - rect.left) / rect.width) * 2 - 1;
+    mouse.y = -((ev.clientY - rect.top) / rect.height) * 2 + 1;
+    ray.setFromCamera(mouse, camera);
+    const hits = ray.intersectObjects(pickables, false);
+    if (!hits.length) return;
+    const { board, comp } = hits[0].object.userData;
+    const p1 = comp.pads[0];
+    const badge = comp.new ? '<span class="badge">MEJORA</span>' : '';
+    const labs = comp.labels ? `<br><b>Pines:</b> ${comp.labels.map((l, i) => `${i + 1}:${l}`).join(' · ')}` : '';
+    const info = document.getElementById('info');
+    info.classList.remove('hidden');
+    info.querySelector('h3').innerHTML = `[${board}] ${comp.ref} — ${comp.value}${badge}`;
+    document.getElementById('infoBody').innerHTML =
+      `<b>Pin 1:</b> Columna ${p1.c}, Fila ${p1.r} · <b>Rot.:</b> ${comp.rot}°<br><b>Función:</b> ${comp.desc}${labs}`;
+  });
+
+  // ResizeObserver mantiene el canvas siempre nitido al girar el telefono o abrir el menu
+  function syncSize() {
+    const w = Math.max(1, stage.clientWidth);
+    const h = Math.max(1, stage.clientHeight);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+    renderer.setSize(w, h, false);
+  }
+  if (typeof ResizeObserver !== 'undefined') {
+    new ResizeObserver(syncSize).observe(stage);
+  } else {
+    window.addEventListener('resize', syncSize);
+  }
+  window.addEventListener('orientationchange', () => setTimeout(() => { syncSize(); setCam(lastCamPreset); }, 180));
+
+  renderer.domElement.addEventListener('webglcontextlost', ev => {
+    ev.preventDefault();
+    showError('Contexto 3D pausado', 'Recarga la página para restaurar el visor 3D.');
+  });
+
+  rebuild('BOTH');
+  let lastT = performance.now();
+  (function loop(now) {
+    requestAnimationFrame(loop);
+    const dt = Math.min(0.05, Math.max(0.001, ((now || performance.now()) - lastT) / 1000));
+    lastT = now || performance.now();
+    if (navMode === 'free') {
+      camera.getWorldDirection(_fwd);
+      _right.crossVectors(_fwd, _worldUp);
+      if (_right.lengthSq() > 1e-6) _right.normalize();
+      else _right.set(1, 0, 0);
+      _move.set(0, 0, 0);
+      if (keys.KeyW || keys.ArrowUp) _move.add(_fwd);
+      if (keys.KeyS || keys.ArrowDown) _move.sub(_fwd);
+      if (keys.KeyD || keys.ArrowRight) _move.add(_right);
+      if (keys.KeyA || keys.ArrowLeft) _move.sub(_right);
+      if (keys.KeyE || keys.Space) _move.add(_worldUp);
+      if (keys.KeyQ || keys.ShiftLeft || keys.ShiftRight) _move.sub(_worldUp);
+      if (_move.lengthSq() > 0) {
+        _move.normalize().multiplyScalar(freeSpeed * dt);
+        camera.position.add(_move);
+      }
+    } else {
+      controls.update();
+    }
+    renderer.render(scene, camera);
+  })(lastT);
+});
+</script>
+</body>
+</html>

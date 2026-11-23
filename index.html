@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
+<title>SAP-1 MAR &amp; RAM — Guía 2D, Visor 3D y Datasheets (UC · FaCyT)</title>
+<style>
+  :root{
+    --bg:#0d121b; --bar:#151c29; --card:#171f2e; --card2:#121826;
+    --line:#27334a; --txt:#e8eef7; --mut:#97a9c4; --acc:#2b6ef2;
+    --acc2:#63a4ff; --warn:#f0b400; --ok:#22c55e; --nav-h:52px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html,body{width:100%;height:100%;height:100dvh;overflow:hidden;background:var(--bg);color:var(--txt);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+  body{display:flex;flex-direction:column}
+
+  /* Barra superior fija */
+  .topbar{
+    height:var(--nav-h);flex-shrink:0;display:flex;align-items:center;justify-content:space-between;
+    gap:10px;padding:0 14px;background:var(--bar);border-bottom:1px solid var(--line);z-index:50;
+  }
+  .brand{display:flex;align-items:center;gap:9px;min-width:0}
+  .brand-logo{
+    width:30px;height:30px;border-radius:8px;flex-shrink:0;
+    background:linear-gradient(135deg,#2b6ef2,#1545a8);
+    display:grid;place-items:center;font-weight:800;font-size:12px;color:#fff;letter-spacing:.3px;
+    box-shadow:0 2px 10px rgba(43,110,242,.35);
+  }
+  .brand-txt{display:flex;flex-direction:column;line-height:1.15;min-width:0}
+  .brand-txt strong{font-size:13.5px;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .brand-txt span{font-size:10.5px;color:var(--mut);white-space:nowrap}
+
+  .nav-tabs{
+    display:flex;align-items:center;gap:4px;background:#0e1420;padding:4px;
+    border-radius:10px;border:1px solid var(--line);overflow-x:auto;scrollbar-width:none;
+  }
+  .nav-tabs::-webkit-scrollbar{display:none}
+  .nav-btn{
+    background:transparent;color:#c2cfe4;border:none;padding:7px 13px;border-radius:7px;
+    cursor:pointer;font-size:12.5px;font-weight:700;white-space:nowrap;
+    display:inline-flex;align-items:center;gap:6px;transition:background .15s,color .15s;
+  }
+  .nav-btn:hover{background:#1f2a3f;color:#fff}
+  .nav-btn.active{background:var(--acc);color:#fff;box-shadow:0 2px 10px rgba(43,110,242,.35)}
+
+  .top-actions{display:flex;align-items:center;gap:6px;flex-shrink:0}
+  .ext-link{
+    color:#b8c9e4;text-decoration:none;font-size:12px;font-weight:600;
+    background:#101623;border:1px solid var(--line);padding:6px 10px;border-radius:7px;
+    white-space:nowrap;transition:.15s;
+  }
+  .ext-link:hover{background:#222e46;color:#fff;border-color:#3a4e73}
+  .ext-link.hidden{display:none}
+
+  /* Contenedor principal 100% del alto restante */
+  .viewport{position:relative;flex:1;min-height:0;width:100%;overflow:hidden}
+
+  /* Paneles apilados: iframes permanecen vivos sin romper WebGL ni perder estado */
+  .view-panel{
+    position:absolute;inset:0;width:100%;height:100%;
+    opacity:0;visibility:hidden;pointer-events:none;z-index:1;
+    transition:opacity .12s ease;
+  }
+  .view-panel.active{opacity:1;visibility:visible;pointer-events:auto;z-index:10}
+
+  .embed-frame{width:100%;height:100%;border:none;display:block;background:#0f141e}
+
+  /* Apartado 3: Datasheets e Integrados */
+  #panel-datasheets{overflow-y:auto;-webkit-overflow-scrolling:touch;background:var(--bg)}
+  .ds-wrap{max-width:1340px;margin:0 auto;padding:18px 18px 64px}
+
+  .ds-hero{
+    background:linear-gradient(135deg,#18243a,#121927);border:1px solid var(--line);
+    border-radius:14px;padding:18px 22px;margin-bottom:16px;
+  }
+  .ds-hero h1{font-size:21px;color:#fff;margin-bottom:6px}
+  .ds-hero p{font-size:13.5px;color:var(--mut);line-height:1.5}
+
+  .ds-controls{
+    position:sticky;top:0;z-index:20;background:rgba(13,18,27,.94);backdrop-filter:blur(8px);
+    padding:10px 0 12px;margin-bottom:14px;border-bottom:1px solid var(--line);
+    display:flex;flex-direction:column;gap:8px;
+  }
+  .ds-row{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px}
+  .filter-pills{display:flex;flex-wrap:wrap;gap:6px}
+  .pill{
+    background:#172133;color:#cdd9ee;border:1px solid #2b3a55;padding:6px 12px;
+    border-radius:20px;cursor:pointer;font-size:12px;font-weight:700;transition:.15s;
+  }
+  .pill:hover{background:#23314c;color:#fff}
+  .pill.active{background:var(--acc);color:#fff;border-color:var(--acc)}
+
+  .ds-search{
+    background:#121826;color:var(--txt);border:1px solid #2f3e5a;border-radius:8px;
+    padding:7px 12px;font-size:13px;min-width:230px;flex:0 1 290px;outline:none;
+  }
+  .ds-search:focus{border-color:var(--acc2)}
+
+  .quick-jumps{display:flex;flex-wrap:wrap;gap:5px;align-items:center}
+  .quick-jumps span{font-size:11px;color:var(--mut);margin-right:3px}
+  .qchip{
+    background:#111724;color:#8cc0ff;border:1px solid #24334d;padding:3px 8px;
+    border-radius:6px;font:700 11px monospace;text-decoration:none;transition:.15s;
+  }
+  .qchip:hover{background:#1f3254;color:#fff;border-color:#4a86f2}
+
+  .sec-title{
+    margin:22px 0 12px;padding-bottom:7px;border-bottom:1px solid var(--line);
+    display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;
+  }
+  .sec-title h2{font-size:17.5px;color:#7ab4ff}
+  .sec-tag{
+    font-size:11px;font-weight:700;padding:3px 9px;border-radius:12px;
+    background:#1a2b48;color:#93c5fd;border:1px solid #2c4673;
+  }
+  .sec-tag.mar{background:#113626;color:#6ee7b7;border-color:#1e6244}
+  .sec-tag.alt{background:#38290f;color:#fcd34d;border-color:#6e4f16}
+
+  .ic-card{
+    background:var(--card);border:1px solid var(--line);border-radius:12px;
+    padding:16px 18px;margin-bottom:16px;scroll-margin-top:115px;
+  }
+  .ic-card.hidden,.sec-group.hidden{display:none}
+  .ic-head{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:10px}
+  .ic-name{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+  .ic-name h3{font-size:17px;color:#fff;font-family:ui-monospace,SFMono-Regular,Consolas,monospace}
+  .badge{
+    display:inline-flex;align-items:center;padding:2px 8px;border-radius:5px;
+    font-size:11px;font-weight:700;letter-spacing:.2px;
+  }
+  .b-desig{background:#1c355c;color:#8be9fd;border:1px solid #2b4f87}
+  .b-pkg{background:#232836;color:#d6dfee;border:1px solid #363f54}
+  .b-mar{background:#123c29;color:#6ee7b7;border:1px solid #1e6b48}
+  .b-ram{background:#2c2246;color:#c4b5fd;border:1px solid #483878}
+  .b-alt{background:#3d2b0d;color:#fde047;border:1px solid #785519}
+
+  .ic-desc{font-size:13.5px;color:#d6e0f0;line-height:1.55;margin-bottom:10px}
+  .ic-desc code{background:#0e1420;color:#8be9fd;padding:1px 6px;border-radius:4px;font-size:12px}
+
+  .ic-note{
+    background:#241c0e;border-left:4px solid var(--warn);border-radius:7px;
+    padding:10px 13px;margin:10px 0 12px;font-size:13px;color:#f4e6c2;line-height:1.5;
+  }
+  .ic-note code{background:#141008;color:#fde047;padding:1px 5px;border-radius:4px;font-size:12px}
+  .ic-note.info{background:#102036;border-left-color:#3b82f6;color:#d7e7ff}
+  .ic-note.info code{background:#091322;color:#8be9fd}
+
+  /* Galeria de hojas tecnicas */
+  .img-grid{
+    display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));
+    gap:12px;margin-top:10px;
+  }
+  .img-tile{
+    background:var(--card2);border:1px solid #2b3852;border-radius:10px;overflow:hidden;
+    cursor:zoom-in;display:flex;flex-direction:column;transition:transform .14s,border-color .14s,box-shadow .14s;
+  }
+  .img-tile:hover{transform:translateY(-2px);border-color:#5390ff;box-shadow:0 6px 20px rgba(0,0,0,.35)}
+  .img-stage{
+    background:#ffffff;padding:10px;display:flex;align-items:center;justify-content:center;
+    min-height:175px;max-height:260px;overflow:hidden;position:relative;
+  }
+  .img-stage img{max-width:100%;max-height:240px;object-fit:contain;display:block}
+  .zoom-hint{
+    position:absolute;right:7px;bottom:7px;background:rgba(15,20,30,.82);color:#fff;
+    font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:5px;pointer-events:none;
+  }
+  .img-cap{
+    padding:8px 10px;font-size:12px;color:#c7d5ec;border-top:1px solid #222e45;
+    display:flex;align-items:center;justify-content:space-between;gap:6px;
+  }
+  .img-cap strong{color:#fff;font-weight:600}
+
+  /* Tabla comparativa compacta (Seccion 4) */
+  .cmp-box{overflow-x:auto;border:1px solid var(--line);border-radius:10px;margin:10px 0 18px;background:var(--card2)}
+  .cmp-tbl{width:100%;border-collapse:collapse;font-size:12.5px;min-width:680px}
+  .cmp-tbl th,.cmp-tbl td{padding:8px 10px;border-bottom:1px solid #222e44;text-align:left}
+  .cmp-tbl th{background:#111a2b;color:#8cc0ff;font-weight:700}
+  .cmp-tbl tr.hl{background:rgba(240,180,0,.09)}
+  .cmp-tbl code{background:#0b101a;color:#8be9fd;padding:1px 5px;border-radius:4px;font-size:11.5px}
+
+  /* Lightbox con zoom real para leer pines en movil y PC */
+  .lb{
+    position:fixed;inset:0;z-index:200;background:rgba(6,9,15,.94);backdrop-filter:blur(6px);
+    display:none;flex-direction:column;
+  }
+  .lb.open{display:flex}
+  .lb-bar{
+    display:flex;align-items:center;justify-content:space-between;gap:10px;
+    padding:10px 14px;background:#121826;border-bottom:1px solid var(--line);flex-shrink:0;
+  }
+  .lb-title{font-size:13px;font-weight:700;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .lb-tools{display:flex;align-items:center;gap:5px;flex-shrink:0}
+  .lb-btn{
+    background:#1c273d;color:#e5eefc;border:1px solid #304263;border-radius:7px;
+    padding:5px 10px;font-size:12.5px;font-weight:700;cursor:pointer;
+  }
+  .lb-btn:hover{background:var(--acc);border-color:var(--acc);color:#fff}
+  .lb-zoom-lbl{font:700 12px monospace;color:#8cc0ff;min-width:44px;text-align:center}
+  .lb-body{
+    flex:1;min-height:0;overflow:auto;display:flex;align-items:center;justify-content:center;
+    padding:18px;position:relative;cursor:grab;
+  }
+  .lb-body.grabbing{cursor:grabbing}
+  .lb-canvas{
+    background:#fff;padding:14px;border-radius:10px;box-shadow:0 12px 45px rgba(0,0,0,.6);
+    transform-origin:center center;transition:transform .1s ease-out;max-width:96%;
+  }
+  .lb-canvas img{display:block;max-width:100%;max-height:78dvh;width:auto;height:auto;user-select:none;-webkit-user-drag:none}
+  .lb-foot{
+    padding:7px 14px;background:#101521;border-top:1px solid var(--line);
+    text-align:center;font-size:11.5px;color:var(--mut);flex-shrink:0;
+  }
+
+  .empty-msg{
+    display:none;text-align:center;padding:34px 16px;color:var(--mut);
+    background:var(--card);border:1px dashed var(--line);border-radius:12px;font-size:14px;
+  }
+  .empty-msg.show{display:block}
+
+  /* Responsivo para telefonos */
+  @media (max-width: 780px){
+    :root{--nav-h:50px}
+    .topbar{padding:0 8px;gap:6px}
+    .brand-txt{display:none}
+    .nav-btn{padding:7px 10px;font-size:12px}
+    .ext-link{padding:6px 8px;font-size:11.5px}
+    .ext-link span{display:none}
+    .ds-wrap{padding:12px 10px 56px}
+    .ds-hero{padding:14px}
+    .ds-hero h1{font-size:17.5px}
+    .ds-search{width:100%;flex:1 1 100%;min-width:0}
+    .img-grid{grid-template-columns:1fr}
+    .lb-bar{flex-wrap:wrap;padding:8px 10px}
+    .lb-title{width:100%;font-size:12px}
+  }
+</style>
+</head>
+<body>
+
+<nav class="topbar" aria-label="Navegación principal">
+  <div class="brand">
+    <div class="brand-logo">SAP1</div>
+    <div class="brand-txt">
+      <strong>MAR (7×9) &amp; RAM (9×15)</strong>
+      <span>UC · FaCyT · Diseño y Organización</span>
+    </div>
+  </div>
+
+  <div class="nav-tabs" role="tablist">
+    <button class="nav-btn active" role="tab" aria-selected="true" data-view="guia">📐 Guía 2D y Datos</button>
+    <button class="nav-btn" role="tab" aria-selected="false" data-view="visor3d">🧊 Visor 3D</button>
+    <button class="nav-btn" role="tab" aria-selected="false" data-view="datasheets">📑 Datasheets e ICs</button>
+  </div>
+
+  <div class="top-actions">
+    <a id="openDirect" class="ext-link" href="./Guia_Montaje_MAR_RAM.html" target="_blank" rel="noopener" title="Abrir este apartado en una pestaña independiente">↗ <span>Abrir aparte</span></a>
+  </div>
+</nav>
+
+<main class="viewport">
+  <!-- Apartado 1: Guia 2D y tablas de cableado (archivo original intacto) -->
+  <section id="panel-guia" class="view-panel active" aria-label="Guía de Montaje 2D y Datos">
+    <iframe id="frameGuia" class="embed-frame" src="./Guia_Montaje_MAR_RAM.html" title="Guía de Montaje 2D MAR y RAM SAP-1"></iframe>
+  </section>
+
+  <!-- Apartado 2: Visor 3D interactivo con Camara Libre (archivo original intacto; carga diferida segura para WebGL) -->
+  <section id="panel-visor3d" class="view-panel" aria-label="Visor 3D Interactivo">
+    <iframe id="frame3d" class="embed-frame" data-src="./Visor3D_MAR_RAM.html" title="Visor 3D Interactivo MAR y RAM SAP-1"></iframe>
+  </section>
+
+  <!-- Apartado 3: Datasheets e Integrados extraidos fielmente del informe -->
+  <section id="panel-datasheets" class="view-panel" aria-label="Datasheets e Integrados">
+    <div class="ds-wrap">
+      <div class="ds-hero">
+        <h1>Hojas de Datos (Datasheets) e Integrados — Módulos MAR y RAM</h1>
+        <p>Recopilación técnica extraída fielmente del informe <b>SAP-1 (UC · FaCyT)</b>: pinouts, diagramas lógicos, tablas de verdad y condiciones recomendadas de operación. <b>Haz clic o toca cualquier imagen</b> para abrir el visor con zoom y leer cada número de pin con claridad en PC o teléfono.</p>
+      </div>
+
+      <div class="ds-controls">
+        <div class="ds-row">
+          <div class="filter-pills" id="dsFilters">
+            <button class="pill active" data-cat="all">Todos (10 ICs)</button>
+            <button class="pill" data-cat="mar">Módulo MAR (2)</button>
+            <button class="pill" data-cat="ram">Módulo RAM Base (4)</button>
+            <button class="pill" data-cat="alt">Alternativas RAM (4)</button>
+          </div>
+          <input type="search" id="dsSearch" class="ds-search" placeholder="Buscar IC, designador (U33, 7489, HM6116)..." aria-label="Buscar integrado">
+        </div>
+        <div class="quick-jumps">
+          <span>Acceso rápido:</span>
+          <a class="qchip" href="#ic-74ls157">74LS157</a>
+          <a class="qchip" href="#ic-74ls173">74LS173</a>
+          <a class="qchip" href="#ic-74ls189">74LS189</a>
+          <a class="qchip" href="#ic-74ls04">74LS04</a>
+          <a class="qchip" href="#ic-74ls00">74LS00</a>
+          <a class="qchip" href="#ic-74ls245">74LS245</a>
+          <a class="qchip" href="#ic-74ls89">7489 / 74LS89</a>
+          <a class="qchip" href="#ic-hm6116">HM6116</a>
+          <a class="qchip" href="#ic-hm6264">HM6264</a>
+          <a class="qchip" href="#ic-hm62256">HM62256</a>
+        </div>
+      </div>
+
+      <div id="emptyMsg" class="empty-msg">No se encontraron integrados que coincidan con el filtro o búsqueda actual.</div>
+
+      <!-- ===================== SECCION A: MODULO MAR ===================== -->
+      <div class="sec-group" data-group="mar">
+        <div class="sec-title">
+          <h2>1. Integrados del Módulo MAR (7 × 9 cm — PY-7*9 CM)</h2>
+          <span class="sec-tag mar">MAR · 2 integrados</span>
+        </div>
+
+        <article class="ic-card" id="ic-74ls157" data-cat="mar" data-terms="sn74ls157n 74ls157 74xx157 u33 u26 u27 u32 multiplexor mux mar ram dip-16">
+          <div class="ic-head">
+            <div class="ic-name">
+              <h3>SN74LS157N</h3>
+              <span class="badge b-desig">U33 (MAR) · U26, U27, U32 (RAM)</span>
+              <span class="badge b-pkg">DIP-16 · TTL LS</span>
+              <span class="badge b-mar">MAR + RAM</span>
+            </div>
+          </div>
+          <p class="ic-desc"><b>Multiplexor cuádruple 2 a 1 (selector de datos):</b> En el MAR (<code>U33</code>, montado con muesca hacia abajo <code>180°</code>) selecciona la fuente de dirección <code>A3..A0</code> entre el banco manual <code>SW5</code> (entradas <code>I0</code> cuando <code>S = 0</code>, modo <b>PROG</b>) y el registro <code>U34</code> (entradas <code>I1</code> cuando <code>S = 1</code>, modo <b>RUN</b>), con habilitación <code>~E</code> (pin 15) fija en <code>GND</code>. También se utiliza en la RAM para multiplexar los 8 bits de datos (<code>U26</code>, <code>U27</code>) y la línea de escritura <code>~WE</code> (<code>U32</code>).</p>
+          <div class="img-grid">
+            <figure class="img-tile"><div class="img-stage"><img loading="lazy" src="./datasheets_img/74LS157_01_pinout.png" alt="SN74LS157N Pinout DIP-16"><span class="zoom-hint">🔍 Ampliar</span></div><figcaption class="img-cap"><strong>SN74LS157N</strong><span>Pinout DIP-16</span></figcaption></figure>
+            <figure class="img-tile"><div class="img-stage"><img loading="lazy" src="./datasheets_img/74LS157_02_tabla_funcion.png" alt="SN74LS157N Tabla de verdad"><span class="zoom-hint">🔍 Ampliar</span></div><figcaption class="img-cap"><strong>SN74LS157N</strong><span>Tabla de verdad</span></figcaption></figure>
+            <figure class="img-tile"><div class="img-stage"><img loading="lazy" src="./datasheets_img/74LS157_03_diagrama_logico.png" alt="SN74LS157N Diagrama lógico"><span class="zoom-hint">🔍 Ampliar</span></div><figcaption class="img-cap"><strong>SN74LS157N</strong><span>Diagrama lógico</span></figcaption></figure>
+            <figure class="img-tile"><div class="img-stage"><img loading="lazy" src="./datasheets_img/74LS157_04_esquema_io.png" alt="SN74LS157N Esquema de entradas y salidas"><span class="zoom-hint">🔍 Ampliar</span></div><figcaption class="img-cap"><strong>SN74LS157N</strong><span>Esquema E/S internas</span></figcaption></figure>
+            <figure class="img-tile"><div class="img-stage"><img loading="lazy" src="./datasheets_img/74LS157_05_condiciones_operacion.png" alt="SN74LS157N Condiciones recomendadas de operación"><span class="zoom-hint">🔍 Ampliar</span></div><figcaption class="img-cap"><strong>SN74LS157N</strong><span>Condiciones de operación</span></figcaption></figure>
+          </div>
+        </article>
+
+        <article class="ic-card" id="ic-74ls173" data-cat="mar" data-terms="sn74ls173an 74ls173 74xx173 u34 registro direccion 4 bits clr clk mi mar dip-16">
+          <div class="ic-head">
+            <div class="ic-name">
+              <h3>SN74LS173AN</h3>
+              <span class="badge b-desig">U34 (MAR)</span>
+              <span class="badge b-pkg">DIP-16 · TTL LS</span>
+              <span class="badge b-mar">Módulo MAR</span>
+            </div>
+          </div>
+          <p class="ic-desc"><b>Registro síncrono de 4 bits tipo D con salidas tri-estado:</b> Captura los 4 bits inferiores del Bus W (<code>BUS_3..BUS_0</code> en pines <code>14..11</code>) en el flanco ascendente de <code>CLK</code> (pin 7) cuando <code>~MI</code> (pines <code>9–10</code> puenteados) está en bajo. Posee borrado asíncrono <b>activo en ALTO</b> en <code>CLR</code> (pin 15) y sus controles de salida <code>M/N</code> (pines <code>1–2</code>) permanecen aterrizados a <code>GND</code>. En el prototipo físico está montado con muesca hacia abajo (<code>180°</code>).</p>
+          <div class="img-grid">
+            <figure class="img-tile"><div class="img-stage"><img loading="lazy" src="./datasheets_img/74LS173_01_pinout.png" alt="SN74LS173AN Pinout DIP-16"><span class="zoom-hint">🔍 Ampliar</span></div><figcaption class="img-cap"><strong>SN74LS173AN</strong><span>Pinout DIP-16</span></figcaption></figure>
+            <figure class="img-tile"><div class="img-stage"><img loading="lazy" src="./datasheets_img/74LS173_02_tabla_funcion.png" alt="SN74LS173AN Tabla de verdad"><span class="zoom-hint">🔍 Ampliar</span></div><figcaption class="img-cap"><strong>SN74LS173AN</strong><span>Tabla de verdad</span></figcaption></figure>
+            <figure class="img-tile"><div class="img-stage"><img loading="lazy" src="./datasheets_img/74LS173_03_diagrama_logico.png" alt="SN74LS173AN Diagrama lógico"><span class="zoom-hint">🔍 Ampliar</span></div><figcaption class="img-cap"><strong>SN74LS173AN</strong><span>Diagrama lógico</span></figcaption></figure>
+            <figure class="img-tile"><div class="img-stage"><img loading="lazy" src="./datasheets_img/74LS173_04_esquema_io.png" alt="SN74LS173AN Esquema de entradas y salidas"><span class="zoom-hint">🔍 Ampliar</span></div><figcaption class="img-cap"><strong>SN74LS173AN</strong><span>Esquema E/S internas</span></figcaption></figure>
+            <figure class="img-tile"><div class="img-stage"><img loading="lazy" src="./datasheets_img/74LS173_05_condiciones_operacion.png" alt="SN74LS173AN Condiciones recomendadas de operación"><span class="zoom-hint">🔍 Ampliar</span></div><figcaption class="img-cap"><strong>SN74LS173AN</strong><span>Condiciones de operación</span></figcaption></figure>
+          </div>
+        </article>
+      </div>
+
+      <!-- ===================== SECCION B: MODULO RAM BASE ===================== -->
+      <div class="sec-group" data-group="ram">
+        <div class="sec-title">
+          <h2>2. Integrados del Módulo RAM — Diseño Base (9 × 15 cm)</h2>
+          <span class="sec-tag">RAM Base · 4 familias (+ 3× 74LS157 arriba)</span>
+        </div>
+
+        <article class="ic-card" id="ic-74ls189" data-cat="ram" data-terms="74ls189 74s189 u24 u25 sram memoria 16x4 triestado tri-estado ram dip-16">
+          <div class="ic-head">
+            <div class="ic-name">
+              <h3>74LS189</h3>
+              <span class="badge b-desig">U24 (bits 7..4) · U25 (bits 3..0)</span>
+              <span class="badge b-pkg">DIP-16 · SRAM 16×4</span>
+              <span class="badge b-ram">RAM Base</span>
+            </div>
+          </div>
+          <p class="ic-desc"><b>Memoria SRAM estática de 64 bits (16 palabras × 4 bits) con salidas tri-estado invertidas:</b> Dos unidades en paralelo forman los <code>16 bytes</code> de la SAP-1. Su pinout <b>intercala entradas y salidas</b> (<code>4=D1, 5=~O1, 6=D2, 7=~O2, 9=~O3, 10=D3, 11=~O4, 12=D4</code>), con direcciones en <code>1=A0, 15=A1, 14=A2, 13=A3</code>, <code>~CS</code> (pin 2) a <code>GND</code> y <code>~WE</code> (pin 3) desde <code>U32.12</code>. Durante escritura (<code>~WE=0</code>) las salidas pasan a alta impedancia (Hi-Z); durante lectura (<code>~WE=1</code>) entregan el complemento del dato hacia <code>U28/U29</code>.</p>
+          <div class="img-grid">
+            <figure class="img-tile"><div class="img-stage"><img loading="lazy" src="./datasheets_img/74LS189_01_pinout.png" alt="74LS189 Connection Diagram Pinout A"><span class="zoom-hint">🔍 Ampliar</span></div><figcaption class="img-cap"><strong>74LS189</strong><span>Pinout DIP-16 (intercalado)</span></figcaption></figure>
+            <figure class="img-tile"><div class="img-stage"><img loading="lazy" src="./datasheets_img/74LS189_02_diagrama_logico.png" alt="74LS189 Logic Diagram"><span class="zoom-hint">🔍 Ampliar</span></div><figcaption class="img-cap"><strong>74LS189</strong><span>Diagrama lógico interno</span></figcaption></figure>
+            <figure class="img-tile"><div class="img-stage"><img loading="lazy" src="./datasheets_img/74LS189_03_tabla_funcion.png" alt="74LS189 Function Table"><span class="zoom-hint">🔍 Ampliar</span></div><figcaption class="img-cap"><strong>74LS189</strong><span>Tabla de verdad</span></figcaption></figure>
+            <figure class="img-tile"><div class="img-stage"><img loading="lazy" src="./datasheets_img/74LS189_04_condiciones_fanout.png" alt="74LS189 Ordering Code y Fan-out"><span class="zoom-hint">🔍 Ampliar</span></div><figcaption class="img-cap"><strong>74LS189</strong><span>Rangos y Fan-out</span></figcaption></figure>
+          </div>
+        </article>
+
+        <article class="ic-card" id="ic-74ls04" data-cat="ram" data-terms="74ls04 u28 u29 hex inversor inversores not ram dip-14">
+          <div class="ic-head">
+            <div class="ic-name">
+              <h3>74LS04</h3>
+              <span class="badge b-desig">U28 (bits 7..4) · U29 (bits 3..0)</span>
+              <span class="badge b-pkg">DIP-14 · TTL LS</span>
+              <span class="badge b-ram">RAM Base</span>
+            </div>
+          </div>
+          <p class="ic-desc"><b>Hex Inversores (6 compuertas NOT independientes):</b> Se utilizan 4 inversores de <code>U28</code> y 4 de <code>U29</code> para restaurar la polaridad positiva de las salidas negadas <code>~DO7..~DO0</code> de las memorias <code>74LS189</code> (o <code>7489/74LS89</code>), excitando simultáneamente los 8 LEDs rojos de datos (<code>D36–D43</code>) y las entradas <code>A0..A7</code> del transceptor <code>U30</code>. Las 4 entradas no usadas (pines <code>1</code> y <code>3</code> de ambos chips) están aterrizadas a <code>GND</code>.</p>
+          <div class="img-grid">
+            <figure class="img-tile"><div class="img-stage"><img loading="lazy" src="./datasheets_img/74LS04_01_pinout_tabla.png" alt="74LS04 Connection Diagram y Function Table"><span class="zoom-hint">🔍 Ampliar</span></div><figcaption class="img-cap"><strong>74LS04</strong><span>Pinout DIP-14 y tabla de verdad</span></figcaption></figure>
+            <figure class="img-tile"><div class="img-stage"><img loading="lazy" src="./datasheets_img/74LS04_02_condiciones_operacion.png" alt="74LS04 Recommended Operating Conditions"><span class="zoom-hint">🔍 Ampliar</span></div><figcaption class="img-cap"><strong>74LS04</strong><span>Condiciones de operación</span></figcaption></figure>
+          </div>
+        </article>
+
+        <article class="ic-card" id="ic-74ls00" data-cat="ram" data-terms="74ls00 u31 nand compuerta escritura we reloj clk ri c7 r58 ram dip-14">
+          <div class="ic-head">
+            <div class="ic-name">
+              <h3>74LS00</h3>
+              <span class="badge b-desig">U31</span>
+              <span class="badge b-pkg">DIP-14 · TTL LS</span>
+              <span class="badge b-ram">RAM Base</span>
+            </div>
+          </div>
+          <p class="ic-desc"><b>Cuádruple compuerta NAND de 2 entradas:</b> La compuerta <code>U31A</code> (pines <code>1, 2 → 3</code>) genera el pulso de escritura síncrono en modo <b>RUN</b> mediante <code>~WE_RUN = NOT(RI · PULSO_CLK)</code>, combinando la señal de control <code>RI</code> con el pulso angosto de <code>~10.5 µs</code> producido por el diferenciador RC funcional (<code>C7 = 10 nF</code>, <code>R58 = 1 kΩ</code>) en cada flanco ascendente de <code>CLK</code>. Las tres compuertas sobrantes tienen sus entradas atadas a <code>GND</code>.</p>
+          <div class="img-grid">
+            <figure class="img-tile"><div class="img-stage"><img loading="lazy" src="./datasheets_img/74LS00_01_pinout_tabla.png" alt="74LS00 Connection Diagram y Function Table"><span class="zoom-hint">🔍 Ampliar</span></div><figcaption class="img-cap"><strong>74LS00</strong><span>Pinout DIP-14 y tabla de verdad</span></figcaption></figure>
+            <figure class="img-tile"><div class="img-stage"><img loading="lazy" src="./datasheets_img/74LS00_02_condiciones_operacion.png" alt="74LS00 Recommended Operating Conditions"><span class="zoom-hint">🔍 Ampliar</span></div><figcaption class="img-cap"><strong>74LS00</strong><span>Condiciones de operación</span></figcaption></figure>
+          </div>
+        </article>
+
+        <article class="ic-card" id="ic-74ls245" data-cat="ram" data-terms="74ls245 u30 transceptor octal bus w ro tri-estado triestado hi-z ram dip-20">
+          <div class="ic-head">
+            <div class="ic-name">
+              <h3>74LS245</h3>
+              <span class="badge b-desig">U30</span>
+              <span class="badge b-pkg">DIP-20 · TTL LS</span>
+              <span class="badge b-ram">RAM Base</span>
+            </div>
+          </div>
+          <p class="ic-desc"><b>Transceptor octal bidireccional con salidas tri-estado:</b> Configurado con <code>DIR = VCC</code> (dirección fija <code>A → B</code>) y habilitación <code>~G / ~OE</code> (pin 19) gobernada por <code>~RO</code>. Cuando <code>~RO = 0</code>, vuelca los 8 bits leídos de la RAM hacia el Bus W (<code>J3.5–J3.12</code>, alineado 1 a 1 sin cruces). Cuando <code>~RO = 1</code> (escritura o modo PROG), sus salidas <code>B0..B7</code> pasan a alta impedancia (<b>Hi-Z</b>), impidiendo cualquier contienda en el Bus W.</p>
+          <div class="img-grid">
+            <figure class="img-tile"><div class="img-stage"><img loading="lazy" src="./datasheets_img/74LS245_01_pinout_tabla.png" alt="74LS245 Connection Diagram y Function Table"><span class="zoom-hint">🔍 Ampliar</span></div><figcaption class="img-cap"><strong>74LS245</strong><span>Pinout DIP-20 y tabla de función</span></figcaption></figure>
+            <figure class="img-tile"><div class="img-stage"><img loading="lazy" src="./datasheets_img/74LS245_02_condiciones_operacion.png" alt="74LS245 Recommended Operating Conditions"><span class="zoom-hint">🔍 Ampliar</span></div><figcaption class="img-cap"><strong>74LS245</strong><span>Condiciones de operación</span></figcaption></figure>
+          </div>
+        </article>
+      </div>
+
+      <!-- ===================== SECCION C: ALTERNATIVAS RAM ===================== -->
+      <div class="sec-group" data-group="alt">
+        <div class="sec-title">
+          <h2>3. Alternativas de Memoria RAM (Sección 4 del Informe)</h2>
+          <span class="sec-tag alt">Adaptaciones Venezuela · 4 memorias</span>
+        </div>
+
+        <div class="cmp-box">
+          <table class="cmp-tbl">
+            <thead>
+              <tr>
+                <th>Memoria</th><th>Organización / Encaps.</th><th>Bus / Salida</th><th>Control (Pin)</th><th>Modificación clave sobre <code>ram.sch</code></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="hl">
+                <td><b>7489 / 74LS89</b></td><td>16×4 (×2) / DIP-16</td><td>Separado / Inv. <b>Colector Abierto</b></td><td><code>~CS(2)=0, ~WE(3)</code></td><td>Pin-a-pin; conserva <code>2×74LS04</code>; <b>agregar 8 pull-ups (1–4.7 kΩ a +5 V)</b> en <code>~O1..~O4</code></td>
+              </tr>
+              <tr>
+                <td><b>HM6116</b></td><td>2K×8 (×1) / DIP-24</td><td>Bidireccional / Directa Tri-estado</td><td><code>~CS(18)=0, ~OE(20), ~WE(21)</code></td><td><code>A4–A10</code> a GND; quitar <code>2×74LS04</code>; agregar <code>74LS244</code> (<code>~OE=~WE</code>) y <code>~OE_RAM=NOT(~WE)</code></td>
+              </tr>
+              <tr>
+                <td><b>HM6264</b></td><td>8K×8 (×1) / DIP-28</td><td>Bidireccional / Directa Tri-estado</td><td><code>~CS1(20)=0, CS2(26)=1, ~OE(22), ~WE(27)</code></td><td><code>A4–A12</code> a GND + <b><code>CS2(26)</code> a VCC</b> + igual adaptación con <code>74LS244</code></td>
+              </tr>
+              <tr>
+                <td><b>HM62256</b></td><td>32K×8 (×1) / DIP-28</td><td>Bidireccional / Directa Tri-estado</td><td><code>~CS(20)=0, ~OE(22), ~WE(27)</code></td><td><code>A4–A14</code> a GND + igual adaptación con <code>74LS244</code> (permite paginar hasta 16 programas)</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <article class="ic-card" id="ic-74ls89" data-cat="alt" data-terms="7489 74ls89 74s89 u24 u25 colector abierto open collector pull-up rn3 rp1 rp8 alternativa principal">
+          <div class="ic-head">
+            <div class="ic-name">
+              <h3>7489 / 74LS89</h3>
+              <span class="badge b-desig">Reemplazo directo U24, U25</span>
+              <span class="badge b-pkg">DIP-16 · SRAM 16×4</span>
+              <span class="badge b-alt">Alternativa Principal</span>
+            </div>
+          </div>
+          <p class="ic-desc"><b>Alternativa principal pin a pin al 74LS189:</b> Comparte exactamente el mismo encapsulado DIP-16, pinout intercalado y salidas invertidas <code>~O1..~O4</code>, por lo que entra en los mismos zócalos de <code>U24/U25</code> y <b>conserva intactos los inversores <code>U28/U29</code> (<code>74LS04</code>)</b>.</p>
+          <div class="ic-note">
+            <b>⚠️ Requisito eléctrico obligatorio (salidas de colector abierto):</b> A diferencia del <code>74LS189</code> (tri-estado), el <code>7489 / 74LS89</code> tiene <b>salidas de colector abierto (open-collector)</b>. Es obligatorio añadir <b>8 resistencias pull-up externas de <code>1 kΩ</code> a <code>4.7 kΩ</code> hacia <code>+5 V</code></b> (p. ej. 1 red SIP-9 <code>RN3</code> de <code>8×2.2 kΩ</code> o <code>8×4.7 kΩ</code>, o 8 resistencias discretas <code>RP1–RP8</code>) en las líneas <code>~DO7..~DO0</code> (pines <code>5, 7, 9, 11</code> de <code>U24/U25</code>) antes de entrar a <code>U28/U29</code>. Durante escritura (<code>~CS=0, ~WE=0</code>) las salidas reflejan el complemento del dato escrito (<em>write-through</em> invertido), sin riesgo de contienda en el Bus W porque <code>U30</code> (<code>74LS245</code>) permanece en Hi-Z con <code>~RO = 1</code>.
+          </div>
+          <div class="img-grid">
+            <figure class="img-tile"><div class="img-stage"><img loading="lazy" src="./datasheets_img/74LS89_01_pinout_caracteristicas.png" alt="74S89 / 74LS89 Pin Configuration y Features"><span class="zoom-hint">🔍 Ampliar</span></div><figcaption class="img-cap"><strong>7489 / 74LS89</strong><span>Pinout DIP-16, símbolo y características</span></figcaption></figure>
+            <figure class="img-tile"><div class="img-stage"><img loading="lazy" src="./datasheets_img/74LS89_02_tabla_diagrama_bloques.png" alt="74S89 / 74LS89 Mode Select Function Table y Block Diagram"><span class="zoom-hint">🔍 Ampliar</span></div><figcaption class="img-cap"><strong>7489 / 74LS89</strong><span>Tabla de función y diagrama de bloques</span></figcaption></figure>
+          </div>
+        </article>
+
+        <article class="ic-card" id="ic-hm6116" data-cat="alt" data-terms="hm6116 6116 cmos sram 2kx8 dip-24 74ls244 bidireccional alternativa">
+          <div class="ic-head">
+            <div class="ic-name">
+              <h3>HM6116</h3>
+              <span class="badge b-desig">Reemplaza U24, U25, U28, U29</span>
+              <span class="badge b-pkg">DIP-24 (ancho) · 2K×8 CMOS</span>
+              <span class="badge b-alt">Alternativa CMOS</span>
+            </div>
+          </div>
+          <p class="ic-desc"><b>SRAM estática CMOS 2048 × 8 bits con salidas directas (no invertidas):</b> Reemplaza simultáneamente las dos <code>74LS189</code> y los dos <code>74LS04</code>. Conectar <code>A0–A3</code> (pines <code>8, 7, 6, 5</code>) al MAR, aterrizar obligatoriamente <code>A4–A10</code> (pines <code>4, 3, 2, 1, 23, 22, 19</code>) y <code>~CS</code> (pin 18) a <code>GND</code>, y gobernar <code>~OE</code> (pin 20) como <code>NOT(~WE)</code>.</p>
+          <div class="ic-note info">
+            <b>Adaptación del bus bidireccional <code>I/O0–I/O7</code>:</b> Insertar un buffer octal tri-estado <code>74LS244</code> entre <code>U26/U27</code> (<code>74LS157</code>) y <code>I/O0–I/O7</code> con habilitación <code>~OE_buf = ~WE</code> para evitar contienda durante la lectura.
+          </div>
+          <div class="img-grid">
+            <figure class="img-tile"><div class="img-stage"><img loading="lazy" src="./datasheets_img/HM6116_01_caracteristicas_orden.png" alt="HM6116 Series Features y Ordering Information"><span class="zoom-hint">🔍 Ampliar</span></div><figcaption class="img-cap"><strong>HM6116</strong><span>Características y modelos</span></figcaption></figure>
+            <figure class="img-tile"><div class="img-stage"><img loading="lazy" src="./datasheets_img/HM6116_02_pinout_bloques.png" alt="HM6116 Pin Arrangement DIP-24 y Block Diagram"><span class="zoom-hint">🔍 Ampliar</span></div><figcaption class="img-cap"><strong>HM6116</strong><span>Pinout DIP-24 y diagrama de bloques</span></figcaption></figure>
+          </div>
+        </article>
+
+        <article class="ic-card" id="ic-hm6264" data-cat="alt" data-terms="hm6264 6264 hm6264b cmos sram 8kx8 dip-28 cs2 74ls244 alternativa">
+          <div class="ic-head">
+            <div class="ic-name">
+              <h3>HM6264</h3>
+              <span class="badge b-desig">Reemplaza U24, U25, U28, U29</span>
+              <span class="badge b-pkg">DIP-28 · 8K×8 CMOS</span>
+              <span class="badge b-alt">Alternativa CMOS</span>
+            </div>
+          </div>
+          <p class="ic-desc"><b>SRAM estática CMOS 8192 × 8 bits:</b> Utiliza el mismo esquema de buffer tri-estado <code>74LS244</code> que la <code>HM6116</code>, con <code>A0–A3</code> en pines <code>10, 9, 8, 7</code>, <code>~CS1</code> (pin 20) y <code>A4–A12</code> (pines <code>6, 5, 4, 3, 25, 24, 21, 23, 2</code>) aterrizados a <code>GND</code>, <code>~OE</code> en pin 22 (<code>NOT(~WE)</code>) y <code>~WE</code> en pin 27.</p>
+          <div class="ic-note">
+            <b>⚠️ Atención crítica — Pin 26 (<code>CS2</code>):</b> A diferencia de la <code>HM62256</code>, la <code>HM6264</code> posee un segundo selector <b><code>CS2</code> activo en ALTO (pin 26)</b> que debe conectarse obligatoriamente a <code>+5 V (VCC)</code> para habilitar el chip.
+          </div>
+          <div class="img-grid">
+            <figure class="img-tile"><div class="img-stage"><img loading="lazy" src="./datasheets_img/HM6264_01_pinout_descripcion.png" alt="HM6264B Pin Arrangement DIP-28 y Pin Description"><span class="zoom-hint">🔍 Ampliar</span></div><figcaption class="img-cap"><strong>HM6264</strong><span>Pinout DIP-28 y descripción de pines</span></figcaption></figure>
+            <figure class="img-tile"><div class="img-stage"><img loading="lazy" src="./datasheets_img/HM6264_02_diagrama_bloques.png" alt="HM6264B Block Diagram"><span class="zoom-hint">🔍 Ampliar</span></div><figcaption class="img-cap"><strong>HM6264</strong><span>Diagrama de bloques</span></figcaption></figure>
+          </div>
+        </article>
+
+        <article class="ic-card" id="ic-hm62256" data-cat="alt" data-terms="hm62256 62256 cmos sram 32kx8 dip-28 paginacion 74ls244 alternativa">
+          <div class="ic-head">
+            <div class="ic-name">
+              <h3>HM62256</h3>
+              <span class="badge b-desig">Reemplaza U24, U25, U28, U29</span>
+              <span class="badge b-pkg">DIP-28 · 32K×8 CMOS</span>
+              <span class="badge b-alt">Alternativa CMOS</span>
+            </div>
+          </div>
+          <p class="ic-desc"><b>SRAM estática CMOS 32768 × 8 bits:</b> Conectar <code>A0–A3</code> en pines <code>10, 9, 8, 7</code>, aterrizar a <code>GND</code> las 11 direcciones superiores <code>A4–A14</code> (pines <code>6, 5, 4, 3, 25, 24, 21, 23, 2, 26, 1</code>) y <code>~CS</code> (pin 20), con <code>~OE(22) = NOT(~WE)</code>, <code>~WE(27)</code> y el mismo buffer tri-estado <code>74LS244</code>. Cableando <code>A4–A7</code> a un DIP switch extra se pueden paginar hasta <b>16 programas independientes de 16 bytes</b>.</p>
+          <div class="img-grid">
+            <figure class="img-tile"><div class="img-stage"><img loading="lazy" src="./datasheets_img/HM62256_01_pinout_encapsulados.png" alt="HM62256 Pin Arrangement DIP-28"><span class="zoom-hint">🔍 Ampliar</span></div><figcaption class="img-cap"><strong>HM62256</strong><span>Pinout DIP-28 y encapsulados</span></figcaption></figure>
+            <figure class="img-tile"><div class="img-stage"><img loading="lazy" src="./datasheets_img/HM62256_02_descripcion_bloques.png" alt="HM62256 Pin Description y Block Diagram"><span class="zoom-hint">🔍 Ampliar</span></div><figcaption class="img-cap"><strong>HM62256</strong><span>Descripción de pines y bloques</span></figcaption></figure>
+          </div>
+        </article>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- Modal Lightbox con zoom para lectura nitida de pines -->
+<div class="lb" id="lightbox" role="dialog" aria-modal="true" aria-label="Visor ampliado de hoja de datos">
+  <div class="lb-bar">
+    <div class="lb-title" id="lbTitle">Datasheet</div>
+    <div class="lb-tools">
+      <button class="lb-btn" id="lbPrev" title="Imagen anterior (←)">←</button>
+      <button class="lb-btn" id="lbNext" title="Imagen siguiente (→)">→</button>
+      <button class="lb-btn" id="lbOut" title="Alejar (-)">−</button>
+      <span class="lb-zoom-lbl" id="lbZoomLbl">100%</span>
+      <button class="lb-btn" id="lbIn" title="Acercar (+)">+</button>
+      <button class="lb-btn" id="lbReset" title="Ajustar (0)">Ajustar</button>
+      <button class="lb-btn" id="lbClose" title="Cerrar (Esc)">✕</button>
+    </div>
+  </div>
+  <div class="lb-body" id="lbBody">
+    <div class="lb-canvas" id="lbCanvas"><img id="lbImg" src="" alt=""></div>
+  </div>
+  <div class="lb-foot">Rueda del ratón o botones +/− para hacer zoom · Arrastra para recorrer los pines · ←/→ cambiar lámina · Esc cerrar</div>
+</div>
+
+<script>
+(function() {
+  const panels = {
+    guia: document.getElementById('panel-guia'),
+    visor3d: document.getElementById('panel-visor3d'),
+    datasheets: document.getElementById('panel-datasheets')
+  };
+  const frame3d = document.getElementById('frame3d');
+  const openDirect = document.getElementById('openDirect');
+  const navBtns = document.querySelectorAll('.nav-btn[data-view]');
+  let visorLoaded = false;
+
+  function setView(view, pushHash) {
+    if (!panels[view]) view = 'guia';
+    navBtns.forEach(b => {
+      const act = b.dataset.view === view;
+      b.classList.toggle('active', act);
+      b.setAttribute('aria-selected', act ? 'true' : 'false');
+    });
+    Object.keys(panels).forEach(k => panels[k].classList.toggle('active', k === view));
+
+    if (view === 'guia') {
+      openDirect.href = './Guia_Montaje_MAR_RAM.html';
+      openDirect.classList.remove('hidden');
+    } else if (view === 'visor3d') {
+      openDirect.href = './Visor3D_MAR_RAM.html';
+      openDirect.classList.remove('hidden');
+      if (!visorLoaded) {
+        visorLoaded = true;
+        frame3d.src = frame3d.dataset.src;
+      } else {
+        setTimeout(() => {
+          try {
+            frame3d.contentWindow.dispatchEvent(new Event('resize'));
+            frame3d.contentWindow.focus();
+          } catch (_) {}
+        }, 60);
+      }
+    } else {
+      openDirect.classList.add('hidden');
+    }
+    if (pushHash && location.hash !== '#' + view) {
+      history.replaceState(null, '', '#' + view);
+    }
+  }
+
+  navBtns.forEach(b => b.addEventListener('click', () => setView(b.dataset.view, true)));
+  frame3d.addEventListener('load', () => {
+    if (panels.visor3d.classList.contains('active')) {
+      try { frame3d.contentWindow.focus(); } catch (_) {}
+    }
+  });
+
+  // Navegacion inicial por hash (#guia, #visor3d, #datasheets)
+  const initHash = (location.hash || '').replace('#', '').toLowerCase();
+  if (panels[initHash]) setView(initHash, false);
+  window.addEventListener('hashchange', () => {
+    const h = (location.hash || '').replace('#', '').toLowerCase();
+    if (panels[h]) setView(h, false);
+  });
+
+  // ---- Filtros y busqueda de Datasheets ----
+  let activeCat = 'all';
+  const cards = Array.from(document.querySelectorAll('.ic-card'));
+  const groups = Array.from(document.querySelectorAll('.sec-group'));
+  const searchInput = document.getElementById('dsSearch');
+  const emptyMsg = document.getElementById('emptyMsg');
+
+  function applyDsFilter() {
+    const q = (searchInput.value || '').trim().toLowerCase();
+    let visibleCount = 0;
+    cards.forEach(card => {
+      const catOk = activeCat === 'all' || card.dataset.cat === activeCat;
+      const text = (card.dataset.terms + ' ' + card.textContent).toLowerCase();
+      const qOk = !q || text.includes(q);
+      const show = catOk && qOk;
+      card.classList.toggle('hidden', !show);
+      if (show) visibleCount++;
+    });
+    groups.forEach(g => {
+      const hasVis = g.querySelector('.ic-card:not(.hidden)') !== null;
+      g.classList.toggle('hidden', !hasVis);
+    });
+    emptyMsg.classList.toggle('show', visibleCount === 0);
+  }
+
+  document.querySelectorAll('#dsFilters .pill').forEach(p => {
+    p.addEventListener('click', () => {
+      document.querySelectorAll('#dsFilters .pill').forEach(x => x.classList.remove('active'));
+      p.classList.add('active');
+      activeCat = p.dataset.cat;
+      applyDsFilter();
+    });
+  });
+  searchInput.addEventListener('input', applyDsFilter);
+
+  // Acceso rapido por chip (garantiza que la tarjeta este visible antes de desplazarse)
+  document.querySelectorAll('.qchip').forEach(a => {
+    a.addEventListener('click', ev => {
+      ev.preventDefault();
+      const target = document.querySelector(a.getAttribute('href'));
+      if (!target) return;
+      if (target.classList.contains('hidden')) {
+        activeCat = 'all';
+        searchInput.value = '';
+        document.querySelectorAll('#dsFilters .pill').forEach(x => x.classList.toggle('active', x.dataset.cat === 'all'));
+        applyDsFilter();
+      }
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  });
+
+  // ---- Lightbox con zoom y paneo ----
+  const lb = document.getElementById('lightbox');
+  const lbImg = document.getElementById('lbImg');
+  const lbCanvas = document.getElementById('lbCanvas');
+  const lbBody = document.getElementById('lbBody');
+  const lbTitle = document.getElementById('lbTitle');
+  const lbZoomLbl = document.getElementById('lbZoomLbl');
+  const tiles = Array.from(document.querySelectorAll('.img-tile'));
+  let curIdx = 0, zoom = 1.0, panX = 0, panY = 0;
+
+  function applyTransform() {
+    lbCanvas.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
+    lbZoomLbl.textContent = Math.round(zoom * 100) + '%';
+  }
+  function setZoom(z) {
+    zoom = Math.max(0.6, Math.min(3.6, z));
+    if (zoom <= 1.01) { panX = 0; panY = 0; }
+    applyTransform();
+  }
+  function visibleTiles() {
+    return tiles.filter(t => !t.closest('.ic-card').classList.contains('hidden'));
+  }
+  function showTile(tile) {
+    const img = tile.querySelector('img');
+    const cap = tile.querySelector('.img-cap').textContent.replace(/\s+/g, ' ').trim();
+    lbImg.src = img.getAttribute('src');
+    lbImg.alt = img.alt;
+    lbTitle.textContent = cap;
+    zoom = 1.0; panX = 0; panY = 0;
+    applyTransform();
+    lb.classList.add('open');
+  }
+
+  tiles.forEach(tile => {
+    tile.addEventListener('click', () => {
+      const vt = visibleTiles();
+      curIdx = Math.max(0, vt.indexOf(tile));
+      showTile(tile);
+    });
+  });
+
+  function stepTile(delta) {
+    const vt = visibleTiles();
+    if (!vt.length) return;
+    curIdx = (curIdx + delta + vt.length) % vt.length;
+    showTile(vt[curIdx]);
+  }
+  function closeLb() { lb.classList.remove('open'); }
+
+  document.getElementById('lbPrev').onclick = () => stepTile(-1);
+  document.getElementById('lbNext').onclick = () => stepTile(1);
+  document.getElementById('lbIn').onclick = () => setZoom(zoom + 0.35);
+  document.getElementById('lbOut').onclick = () => setZoom(zoom - 0.35);
+  document.getElementById('lbReset').onclick = () => setZoom(1.0);
+  document.getElementById('lbClose').onclick = closeLb;
+
+  lbBody.addEventListener('wheel', ev => {
+    if (!lb.classList.contains('open')) return;
+    ev.preventDefault();
+    setZoom(zoom * (ev.deltaY < 0 ? 1.15 : 1 / 1.15));
+  }, { passive: false });
+
+  // Paneo con arrastre cuando hay zoom
+  let dragging = false, sx = 0, sy = 0, ox = 0, oy = 0, moved = 0;
+  lbBody.addEventListener('pointerdown', ev => {
+    if (ev.target === lbBody) { moved = 0; return; }
+    dragging = true; moved = 0;
+    sx = ev.clientX; sy = ev.clientY; ox = panX; oy = panY;
+    lbBody.classList.add('grabbing');
+  });
+  window.addEventListener('pointermove', ev => {
+    if (!dragging) return;
+    const dx = ev.clientX - sx, dy = ev.clientY - sy;
+    moved = Math.hypot(dx, dy);
+    panX = ox + dx; panY = oy + dy;
+    applyTransform();
+  });
+  window.addEventListener('pointerup', ev => {
+    if (dragging) {
+      dragging = false;
+      lbBody.classList.remove('grabbing');
+    } else if (ev.target === lbBody && moved < 5) {
+      closeLb();
+    }
+  });
+  lbCanvas.addEventListener('dblclick', () => setZoom(zoom > 1.2 ? 1.0 : 2.1));
+
+  window.addEventListener('keydown', ev => {
+    if (!lb.classList.contains('open')) return;
+    if (ev.key === 'Escape') closeLb();
+    else if (ev.key === 'ArrowLeft') stepTile(-1);
+    else if (ev.key === 'ArrowRight') stepTile(1);
+    else if (ev.key === '+' || ev.key === '=') setZoom(zoom + 0.35);
+    else if (ev.key === '-') setZoom(zoom - 0.35);
+    else if (ev.key === '0') setZoom(1.0);
+  });
+})();
+</script>
+</body>
+</html>
